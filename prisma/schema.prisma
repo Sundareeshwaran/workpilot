@@ -58,6 +58,8 @@ model User {
 
   currency String @default("INR")
 
+  emailVerified DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
