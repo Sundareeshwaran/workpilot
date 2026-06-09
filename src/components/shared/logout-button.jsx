@@ -3,8 +3,9 @@
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { Button } from "../ui/button";
+import { cn } from "@/lib/utils";
 
-export default function LogoutButton() {
+export default function LogoutButton({ className }) {
   const router = useRouter();
   return (
     <Button
@@ -14,6 +15,7 @@ export default function LogoutButton() {
         });
         router.push("/login");
       }}
+      className={cn(className)}
     >
       Logout
     </Button>

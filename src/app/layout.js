@@ -1,16 +1,21 @@
-import { Poppins, Outfit } from "next/font/google";
+import { Poppins, Fira_Code, Lora } from "next/font/google";
 import "./globals.css";
 import AuthProvider from "@/components/providers/auth-provider";
 
-const poppins = Poppins({
-  variable: "--font-sans",
+const fontSans = Poppins({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  variable: "--font-sans",
+  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
 });
 
-const outfit = Outfit({
-  variable: "--font-mono",
+const fontSerif = Lora({
   subsets: ["latin"],
+  variable: "--font-serif",
+});
+
+const fontMono = Fira_Code({
+  subsets: ["latin"],
+  variable: "--font-mono",
 });
 
 export const metadata = {
@@ -22,7 +27,7 @@ export default function RootLayout({ children }) {
   return (
     <html
       lang="en"
-      className={`${poppins.variable} ${outfit.variable} h-full antialiased`}
+      className={`${fontSans.variable} ${fontSerif.variable} ${fontMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <AuthProvider>{children}</AuthProvider>
