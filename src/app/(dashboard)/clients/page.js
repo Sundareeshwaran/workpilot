@@ -1,14 +1,9 @@
-import { auth } from "@/auth";
-import LogoutButton from "@/components/shared/logout-button";
+import EmptyState from "@/components/shared/empty-state";
 
-export default async function ClientPage() {
-  const session = await auth();
-
+export default function ClientPage() {
   return (
     <div>
-      <h1 className="text-3xl font-bold">Client</h1>
-
-      <p className="text-muted-foreground mt-2">Welcome to WorkPilot CRM.</p>
+      <EmptyState />
     </div>
   );
 }

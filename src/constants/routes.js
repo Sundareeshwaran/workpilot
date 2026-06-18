@@ -3,7 +3,7 @@ import {
   Users,
   FolderKanban,
   FileText,
-  Settings,
+  SquareKanban,
   CreditCard,
 } from "lucide-react";
 
@@ -24,6 +24,11 @@ export const dashboardRoutes = [
     icon: FolderKanban,
   },
   {
+    name: "Notes",
+    href: "/notes",
+    icon: SquareKanban,
+  },
+  {
     name: "Invoices",
     href: "/invoices",
     icon: FileText,
@@ -32,10 +37,5 @@ export const dashboardRoutes = [
     name: "Payments",
     href: "/payments",
     icon: CreditCard,
-  },
-  {
-    name: "Settings",
-    href: "/settings",
-    icon: Settings,
   },
 ];

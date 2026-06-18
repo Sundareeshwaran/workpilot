@@ -1,5 +1,6 @@
 import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import UserNav from "./user-nav";
 
 export default function Navbar() {
   return (
@@ -12,7 +13,7 @@ export default function Navbar() {
         </Button>
 
         <div className="h-9 w-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
-          S
+          <UserNav />
         </div>
       </div>
     </header>

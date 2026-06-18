@@ -2,8 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import LogoutButton from "../shared/logout-button";
-import { cn } from "@/lib/utils";
 import { dashboardRoutes } from "@/constants/routes";
 
 const menuItems = [...dashboardRoutes];
@@ -41,9 +39,7 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="mb-6 flex items-center justify-center">
-        <LogoutButton className={cn("w-[80%]")} />
-      </div>
+      <div className="mb-6 flex items-center justify-center"></div>
     </aside>
   );
 }
