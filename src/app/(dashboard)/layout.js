@@ -1,11 +1,14 @@
 import { auth } from "@/auth";
 import Navbar from "@/components/dashboard/navbar";
 import Sidebar from "@/components/dashboard/sidebar";
+import { Loader2 } from "lucide-react";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
 export const metadata = {
-  title: "Dashboard",
-  description: "Dashboard",
+  title: "WorkPilot - Dashboard",
+  description:
+    "Welcome to WorkPilot - A free and open source dashboard for freelancers and agencies",
 };
 
 export default async function DashboardLayout({ children }) {
@@ -24,7 +27,17 @@ export default async function DashboardLayout({ children }) {
         <Navbar />
 
         {/* Page Content */}
-        <main className="flex-1 p-6">{children}</main>
+        <main className="flex-1 p-6">
+          <Suspense
+            fallback={
+              <div className="flex h-full w-full items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin" />
+              </div>
+            }
+          >
+            {children}
+          </Suspense>
+        </main>
       </div>
     </div>
   );

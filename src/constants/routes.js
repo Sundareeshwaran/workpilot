@@ -2,34 +2,40 @@ import {
   LayoutDashboard,
   Users,
   FolderKanban,
-  Receipt,
+  FileText,
+  Settings,
   CreditCard,
 } from "lucide-react";
 
 export const dashboardRoutes = [
   {
-    label: "Dashboard",
+    name: "Dashboard",
     href: "/dashboard",
     icon: LayoutDashboard,
   },
   {
-    label: "Clients",
+    name: "Clients",
     href: "/clients",
     icon: Users,
   },
   {
-    label: "Projects",
+    name: "Projects",
     href: "/projects",
     icon: FolderKanban,
   },
   {
-    label: "Invoices",
+    name: "Invoices",
     href: "/invoices",
-    icon: Receipt,
+    icon: FileText,
   },
   {
-    label: "Payments",
+    name: "Payments",
     href: "/payments",
     icon: CreditCard,
+  },
+  {
+    name: "Settings",
+    href: "/settings",
+    icon: Settings,
   },
 ];

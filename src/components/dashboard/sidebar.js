@@ -2,50 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
-import {
-  LayoutDashboard,
-  Users,
-  FolderKanban,
-  FileText,
-  CreditCard,
-  Settings,
-} from "lucide-react";
 import LogoutButton from "../shared/logout-button";
 import { cn } from "@/lib/utils";
+import { dashboardRoutes } from "@/constants/routes";
 
-const menuItems = [
-  {
-    name: "Dashboard",
-    href: "/dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    name: "Clients",
-    href: "/clients",
-    icon: Users,
-  },
-  {
-    name: "Projects",
-    href: "/projects",
-    icon: FolderKanban,
-  },
-  {
-    name: "Invoices",
-    href: "/invoices",
-    icon: FileText,
-  },
-  {
-    name: "Payments",
-    href: "/payments",
-    icon: CreditCard,
-  },
-  {
-    name: "Settings",
-    href: "/settings",
-    icon: Settings,
-  },
-];
+const menuItems = [...dashboardRoutes];
 
 export default function Sidebar() {
   const pathname = usePathname();
