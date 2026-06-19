@@ -45,42 +45,44 @@ export default function LoginPage() {
             Enter your details below to login into your account
           </CardDescription>
         </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="flex flex-col gap-6">
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="m@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
+        <CardContent>
+          <form onSubmit={handleSubmit}>
+            <div className="flex flex-col gap-6">
+              <div className="grid gap-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="m@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-          </CardContent>
-          <CardFooter className="flex-col gap-4">
-            <Button type="submit" className="w-full">
-              Login
-            </Button>
-            <div className="text-sm text-muted-foreground">
-              Don&apos;t have an account?{" "}
-              <Link href="/register" className="underline underline-offset-4">
-                Register
-              </Link>
-            </div>
-          </CardFooter>
-        </form>
+          </form>
+        </CardContent>
+        <CardFooter className="flex-col gap-4">
+          <Button onClick={handleSubmit} type="submit" className="w-full">
+            Login
+          </Button>
+          <div className="text-sm text-muted-foreground">
+            Don&apos;t have an account?{" "}
+            <Link href="/register" className="underline underline-offset-4">
+              Register
+            </Link>
+          </div>
+        </CardFooter>
       </Card>
     </div>
   );
