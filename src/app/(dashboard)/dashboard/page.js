@@ -2,6 +2,8 @@ import PageHeader from "@/components/dashboard/page-header";
 import MetricCard from "@/components/dashboard/metric-card";
 import { stats } from "@/constants/dummy";
 import RevenueChart from "@/components/shared/revenue-chart";
+import RecentActivity from "@/components/shared/recent-activity";
+import DashboardShell from "@/components/dashboard/dashboard-shell";
 
 export default function DashboardPage() {
   const numFormatter = new Intl.NumberFormat("en-IN");
@@ -35,10 +37,7 @@ export default function DashboardPage() {
           description="All your revenue"
         />
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-        <RevenueChart />
-        <RevenueChart />
-      </div>
+      <DashboardShell />
     </div>
   );
 }
