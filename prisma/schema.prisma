@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 enum ProjectStatus {
@@ -79,7 +78,7 @@ model Client {
   name        String
   companyName String?
 
-  email String?
+  email String? @unique
   phone String?
 
   website String?
