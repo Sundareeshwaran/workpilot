@@ -91,7 +91,6 @@ export async function POST(request) {
 export async function GET() {
   try {
     const session = await auth();
-
     if (!session) {
       return NextResponse.json(
         {
@@ -104,9 +103,7 @@ export async function GET() {
 
     const clients = await prisma.client.findMany({
       where: {
-        user: {
-          id: session.user.id,
-        },
+        userId: session.user.id,
       },
     });
 

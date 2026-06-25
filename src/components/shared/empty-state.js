@@ -9,13 +9,6 @@ export default function EmptyState() {
   const isClient = true;
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Client</h1>
-        <Button className="cursor-pointer">
-          <Plus />
-          Add new client
-        </Button>
-      </div>
       {isClient ? (
         <LoadingSkeleton />
       ) : (
