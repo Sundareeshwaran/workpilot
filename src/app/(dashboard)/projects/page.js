@@ -10,6 +10,7 @@ import {
   SearchX,
   RefreshCw,
 } from "lucide-react";
+import AddProject from "@/components/projects/add-project";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -28,6 +29,8 @@ export default function ProjectsPage() {
   const [priority, setPriority] = useState("");
   const [sortBy, setSortBy] = useState("createdAt");
   const [sortOrder, setSortOrder] = useState("desc");
+
+  const [showAddProject, setShowAddProject] = useState(false);
 
   // Debounce search input to avoid spamming the API
   const debouncedSearch = useDebounce(search, 300);
@@ -79,10 +82,10 @@ export default function ProjectsPage() {
 
   const hasActiveFilters = Boolean(
     search.trim() ||
-      status ||
-      priority ||
-      sortBy !== "createdAt" ||
-      sortOrder !== "desc"
+    status ||
+    priority ||
+    sortBy !== "createdAt" ||
+    sortOrder !== "desc"
   );
 
   return (
@@ -94,7 +97,8 @@ export default function ProjectsPage() {
             <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
             {!loading && (
               <span className="inline-flex items-center justify-center px-2.5 py-0.5 text-xs font-semibold rounded-full bg-primary/10 text-primary">
-                {projects.length} {projects.length === 1 ? "project" : "projects"}
+                {projects.length}{" "}
+                {projects.length === 1 ? "project" : "projects"}
               </span>
             )}
           </div>
@@ -118,7 +122,10 @@ export default function ProjectsPage() {
             <span className="hidden sm:inline">Refresh</span>
           </Button>
 
-          <Button className="h-9 gap-1.5 shadow-sm">
+          <Button
+            onClick={() => setShowAddProject(true)}
+            className="h-9 gap-1.5 shadow-sm"
+          >
             <Plus className="size-4" />
             <span>New Project</span>
           </Button>
@@ -237,12 +244,23 @@ export default function ProjectsPage() {
             Get started by creating your first project to organize tasks, track
             budgets, and manage client deliverables.
           </p>
-          <Button className="gap-1.5">
+          <Button onClick={() => setShowAddProject(true)} className="gap-1.5">
             <Plus className="size-4" />
             Create Project
           </Button>
         </div>
       )}
+
+      {/* Add Project Drawer */}
+      <AddProject
+        open={showAddProject}
+        onOpenChange={setShowAddProject}
+        onSuccess={() => {
+          fetchProjects();
+          setShowAddProject(false);
+        }}
+        onCancel={() => setShowAddProject(false)}
+      />
     </div>
   );
 }
