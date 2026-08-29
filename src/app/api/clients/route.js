@@ -34,35 +34,100 @@ export async function POST(request) {
     const { name, companyName, email, phone, website, address, notes } =
       validateFields.data;
 
+    const cleanName = name.trim();
+    const cleanCompanyName = companyName?.trim() || null;
     const cleanEmail = email && email.trim() !== "" ? email.trim() : null;
+    const cleanPhone = phone && phone.trim() !== "" ? phone.trim() : null;
+    const cleanWebsite = website && website.trim() !== "" ? website.trim() : null;
+    const cleanAddress = address && address.trim() !== "" ? address.trim() : null;
+    const cleanNotes = notes && notes.trim() !== "" ? notes.trim() : null;
 
+    // 1. Check duplicate Email
     if (cleanEmail) {
-      const existingClient = await prisma.client.findUnique({
+      const emailConflict = await prisma.client.findFirst({
         where: {
-          email: cleanEmail,
+          email: { equals: cleanEmail, mode: "insensitive" },
         },
       });
 
-      if (existingClient) {
+      if (emailConflict) {
         return NextResponse.json(
           {
             success: false,
-            message: "Client with this email already exists",
+            message: `A client with the email "${cleanEmail}" already exists.`,
           },
           { status: 409 },
         );
       }
     }
 
+    // 2. Check duplicate Phone Number for this user
+    if (cleanPhone) {
+      const phoneConflict = await prisma.client.findFirst({
+        where: {
+          userId: session.user.id,
+          phone: cleanPhone,
+        },
+      });
+
+      if (phoneConflict) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `A client with the phone number "${cleanPhone}" already exists.`,
+          },
+          { status: 409 },
+        );
+      }
+    }
+
+    // 3. Check duplicate Company Name for this user
+    if (cleanCompanyName) {
+      const companyConflict = await prisma.client.findFirst({
+        where: {
+          userId: session.user.id,
+          companyName: { equals: cleanCompanyName, mode: "insensitive" },
+        },
+      });
+
+      if (companyConflict) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `A client for company "${cleanCompanyName}" already exists.`,
+          },
+          { status: 409 },
+        );
+      }
+    }
+
+    // 4. Check duplicate Client Name for this user
+    const nameConflict = await prisma.client.findFirst({
+      where: {
+        userId: session.user.id,
+        name: { equals: cleanName, mode: "insensitive" },
+      },
+    });
+
+    if (nameConflict) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: `A client named "${cleanName}" already exists in your workspace.`,
+        },
+        { status: 409 },
+      );
+    }
+
     const client = await prisma.client.create({
       data: {
-        name,
-        companyName: companyName?.trim() || null,
+        name: cleanName,
+        companyName: cleanCompanyName,
         email: cleanEmail,
-        phone: phone?.trim() || null,
-        website: website?.trim() || null,
-        address: address?.trim() || null,
-        notes: notes?.trim() || null,
+        phone: cleanPhone,
+        website: cleanWebsite,
+        address: cleanAddress,
+        notes: cleanNotes,
         user: {
           connect: {
             id: session.user.id,

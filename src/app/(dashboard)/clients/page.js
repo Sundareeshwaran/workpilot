@@ -33,6 +33,14 @@ export default async function ClientPage({ searchParams }) {
 
   const clients = await prisma.client.findMany({
     where: whereClause,
+    include: {
+      projects: {
+        select: { id: true, status: true },
+      },
+      invoices: {
+        select: { id: true, total: true, status: true },
+      },
+    },
     orderBy: {
       createdAt: "desc",
     },
