@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Sheet,
   SheetContent,
@@ -108,10 +109,20 @@ export default function AddProject({
   };
 
   const handleSelectChange = (name, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => {
+      const next = {
+        ...prev,
+        [name]: value,
+      };
+
+      if (name === "startDate" && value && next.dueDate) {
+        if (new Date(value) > new Date(next.dueDate)) {
+          next.dueDate = value;
+        }
+      }
+
+      return next;
+    });
   };
 
   const handleClose = () => {
@@ -125,6 +136,12 @@ export default function AddProject({
     }
   };
 
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  const todayDateString = `${year}-${month}-${day}`;
+
   const handleSubmit = async (event) => {
     event.preventDefault();
 
@@ -135,6 +152,11 @@ export default function AddProject({
 
     if (!formData.clientId) {
       setError("Please select a client for this project");
+      return;
+    }
+
+    if (formData.startDate && formData.startDate < todayDateString) {
+      setError("Start date cannot be in the past");
       return;
     }
 
@@ -372,13 +394,13 @@ export default function AddProject({
                 <Label htmlFor="startDate" className="text-xs font-semibold">
                   Start Date
                 </Label>
-                <Input
+                <DatePicker
                   id="startDate"
                   name="startDate"
-                  type="date"
                   value={formData.startDate}
-                  onChange={handleChange}
-                  className="h-9 text-sm"
+                  onChange={(val) => handleSelectChange("startDate", val)}
+                  minDate={todayDateString}
+                  placeholder="Select start date"
                 />
               </div>
 
@@ -386,13 +408,13 @@ export default function AddProject({
                 <Label htmlFor="dueDate" className="text-xs font-semibold">
                   Due Date
                 </Label>
-                <Input
+                <DatePicker
                   id="dueDate"
                   name="dueDate"
-                  type="date"
                   value={formData.dueDate}
-                  onChange={handleChange}
-                  className="h-9 text-sm"
+                  onChange={(val) => handleSelectChange("dueDate", val)}
+                  minDate={formData.startDate || todayDateString}
+                  placeholder="Select due date"
                 />
               </div>
             </div>

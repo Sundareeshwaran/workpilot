@@ -31,7 +31,7 @@ export default async function ClientPage({ searchParams }) {
       : {}),
   };
 
-  const clients = await prisma.client.findMany({
+  const rawClients = await prisma.client.findMany({
     where: whereClause,
     include: {
       projects: {
@@ -45,6 +45,16 @@ export default async function ClientPage({ searchParams }) {
       createdAt: "desc",
     },
   });
+
+  const clients = rawClients.map((client) => ({
+    ...client,
+    createdAt: client.createdAt.toISOString(),
+    updatedAt: client.updatedAt.toISOString(),
+    invoices: client.invoices.map((inv) => ({
+      ...inv,
+      total: Number(inv.total || 0),
+    })),
+  }));
 
   return (
     <div className="space-y-6">
