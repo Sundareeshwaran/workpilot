@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 import {
   Sheet,
@@ -27,6 +28,7 @@ const initialClient = {
 };
 
 export default function AddClient({ open, onOpenChange }) {
+  const router = useRouter();
   const [client, setClient] = useState(initialClient);
   const [loading, setLoading] = useState(false);
 
@@ -62,10 +64,10 @@ export default function AddClient({ open, onOpenChange }) {
       // Reset form
       setClient(initialClient);
 
-      // Close sheet
+      // Refresh list & Close sheet
+      router.refresh();
       onOpenChange(false);
     } catch (error) {
-      console.error(error);
       alert(error.message);
     } finally {
       setLoading(false);

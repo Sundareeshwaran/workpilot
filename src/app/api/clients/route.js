@@ -34,31 +34,35 @@ export async function POST(request) {
     const { name, companyName, email, phone, website, address, notes } =
       validateFields.data;
 
-    const existingClient = await prisma.client.findUnique({
-      where: {
-        email,
-      },
-    });
+    const cleanEmail = email && email.trim() !== "" ? email.trim() : null;
 
-    if (existingClient) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Client already exists",
+    if (cleanEmail) {
+      const existingClient = await prisma.client.findUnique({
+        where: {
+          email: cleanEmail,
         },
-        { status: 409 },
-      );
+      });
+
+      if (existingClient) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Client with this email already exists",
+          },
+          { status: 409 },
+        );
+      }
     }
 
     const client = await prisma.client.create({
       data: {
         name,
-        companyName,
-        email,
-        phone,
-        website,
-        address,
-        notes,
+        companyName: companyName?.trim() || null,
+        email: cleanEmail,
+        phone: phone?.trim() || null,
+        website: website?.trim() || null,
+        address: address?.trim() || null,
+        notes: notes?.trim() || null,
         user: {
           connect: {
             id: session.user.id,
