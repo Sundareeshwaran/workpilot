@@ -180,7 +180,15 @@ export async function PATCH(request, { params }) {
             name: true,
             companyName: true,
             email: true,
+            phone: true,
+            website: true,
           },
+        },
+        tasks: {
+          orderBy: { createdAt: "desc" },
+        },
+        invoices: {
+          orderBy: { createdAt: "desc" },
         },
       },
     });

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { projectSchema } from "@/validations/project.validation";
 
+// POST /api/projects/
 export async function POST(request) {
   try {
     const session = await auth();
@@ -89,6 +90,7 @@ export async function POST(request) {
   }
 }
 
+// GET /api/projects/
 export async function GET(request) {
   try {
     const session = await auth();
@@ -161,7 +163,9 @@ export async function GET(request) {
       "dueDate",
     ];
 
-    const finalSortBy = allowedSortFields.includes(sortBy) ? sortBy : "createdAt";
+    const finalSortBy = allowedSortFields.includes(sortBy)
+      ? sortBy
+      : "createdAt";
 
     const projects = await prisma.project.findMany({
       where,
