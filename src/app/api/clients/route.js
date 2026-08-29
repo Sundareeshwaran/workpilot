@@ -92,7 +92,7 @@ export async function POST(request) {
   }
 }
 
-export async function GET() {
+export async function GET(request) {
   try {
     const session = await auth();
     if (!session) {
@@ -105,9 +105,27 @@ export async function GET() {
       );
     }
 
+    const { searchParams } = new URL(request.url);
+    const search = searchParams.get("search")?.trim();
+
+    const whereClause = {
+      userId: session.user.id,
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: "insensitive" } },
+              { companyName: { contains: search, mode: "insensitive" } },
+              { email: { contains: search, mode: "insensitive" } },
+              { phone: { contains: search, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    };
+
     const clients = await prisma.client.findMany({
-      where: {
-        userId: session.user.id,
+      where: whereClause,
+      orderBy: {
+        createdAt: "desc",
       },
     });
 
