@@ -14,6 +14,13 @@ enum ProjectStatus {
   CANCELLED
 }
 
+enum ProjectPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
 enum TaskStatus {
   TODO
   IN_PROGRESS
@@ -107,7 +114,8 @@ model Project {
 
   budget Decimal?
 
-  status ProjectStatus @default(DRAFT)
+  status   ProjectStatus   @default(DRAFT)
+  priority ProjectPriority @default(MEDIUM)
 
   startDate DateTime?
   dueDate   DateTime?
@@ -115,12 +123,14 @@ model Project {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   tasks    Task[]
   invoices Invoice[]
+
+  @@index([userId])
+  @@index([clientId])
 }
 
 // Task Model
