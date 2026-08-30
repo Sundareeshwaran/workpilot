@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { projectSchema } from "@/validations/project.validation";
+import { projectUpdateSchema } from "@/validations/project.validation";
 import {
   getProjectById,
   updateProject,
@@ -93,7 +93,7 @@ export async function PATCH(request, { params }) {
     }
 
     const body = await request.json();
-    const validateFields = projectSchema.safeParse(body);
+    const validateFields = projectUpdateSchema.safeParse(body);
 
     if (!validateFields.success) {
       return NextResponse.json(

@@ -231,12 +231,15 @@ export async function getProjectById({ id, userId }) {
       invoices: {
         orderBy: { createdAt: "desc" },
       },
+      activities: {
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
 }
 
 /**
- * Create a new project for a user after verifying client ownership.
+ * Create a new project for a user with transactional activity logging.
  */
 export async function createProject({ userId, data }) {
   const client = await prisma.client.findFirst({
@@ -252,35 +255,47 @@ export async function createProject({ userId, data }) {
     throw error;
   }
 
-  return await prisma.project.create({
-    data: {
-      userId,
-      clientId: data.clientId,
-      name: data.name,
-      description: data.description || null,
-      status: data.status,
-      priority: data.priority,
-      budget: data.budget ?? null,
-      startDate: data.startDate ? new Date(data.startDate) : null,
-      dueDate: data.dueDate ? new Date(data.dueDate) : null,
-    },
-    include: {
-      client: {
-        select: {
-          id: true,
-          name: true,
-          companyName: true,
-          email: true,
-          phone: true,
-          website: true,
+  return await prisma.$transaction(async (tx) => {
+    const project = await tx.project.create({
+      data: {
+        userId,
+        clientId: data.clientId,
+        name: data.name,
+        description: data.description || null,
+        status: data.status,
+        priority: data.priority,
+        budget: data.budget ?? null,
+        startDate: data.startDate ? new Date(data.startDate) : null,
+        dueDate: data.dueDate ? new Date(data.dueDate) : null,
+      },
+      include: {
+        client: {
+          select: {
+            id: true,
+            name: true,
+            companyName: true,
+            email: true,
+            phone: true,
+            website: true,
+          },
         },
       },
-    },
+    });
+
+    await tx.activity.create({
+      data: {
+        userId,
+        projectId: project.id,
+        action: "PROJECT_CREATED",
+      },
+    });
+
+    return project;
   });
 }
 
 /**
- * Update an existing project for a user after verifying ownership.
+ * Update an existing project for a user with transactional activity logging.
  */
 export async function updateProject({ id, userId, data }) {
   const existingProject = await prisma.project.findFirst({
@@ -296,7 +311,7 @@ export async function updateProject({ id, userId, data }) {
     throw error;
   }
 
-  if (data.clientId) {
+  if (data.clientId && data.clientId !== existingProject.clientId) {
     const client = await prisma.client.findFirst({
       where: {
         id: data.clientId,
@@ -311,36 +326,77 @@ export async function updateProject({ id, userId, data }) {
     }
   }
 
-  return await prisma.project.update({
-    where: { id },
-    data: {
-      name: data.name,
-      clientId: data.clientId,
-      description: data.description || null,
-      status: data.status,
-      priority: data.priority,
-      budget: data.budget ?? null,
-      startDate: data.startDate ? new Date(data.startDate) : null,
-      dueDate: data.dueDate ? new Date(data.dueDate) : null,
-    },
-    include: {
-      client: {
-        select: {
-          id: true,
-          name: true,
-          companyName: true,
-          email: true,
-          phone: true,
-          website: true,
+  const isStatusChanged =
+    data.status !== undefined &&
+    data.status !== null &&
+    data.status !== existingProject.status;
+
+  const updateData = {};
+  if (data.name !== undefined) updateData.name = data.name;
+  if (data.clientId !== undefined) updateData.clientId = data.clientId;
+  if (data.description !== undefined)
+    updateData.description = data.description || null;
+  if (data.status !== undefined) updateData.status = data.status;
+  if (data.priority !== undefined) updateData.priority = data.priority;
+  if (data.budget !== undefined) updateData.budget = data.budget ?? null;
+  if (data.startDate !== undefined)
+    updateData.startDate = data.startDate ? new Date(data.startDate) : null;
+  if (data.dueDate !== undefined)
+    updateData.dueDate = data.dueDate ? new Date(data.dueDate) : null;
+
+  return await prisma.$transaction(async (tx) => {
+    const updatedProject = await tx.project.update({
+      where: { id },
+      data: updateData,
+      include: {
+        client: {
+          select: {
+            id: true,
+            name: true,
+            companyName: true,
+            email: true,
+            phone: true,
+            website: true,
+          },
+        },
+        tasks: {
+          orderBy: { createdAt: "desc" },
+        },
+        invoices: {
+          orderBy: { createdAt: "desc" },
         },
       },
-      tasks: {
-        orderBy: { createdAt: "desc" },
-      },
-      invoices: {
-        orderBy: { createdAt: "desc" },
-      },
-    },
+    });
+
+    if (isStatusChanged) {
+      await tx.activity.create({
+        data: {
+          userId,
+          projectId: id,
+          action: "PROJECT_STATUS_CHANGED",
+          details: {
+            from: existingProject.status,
+            to: data.status,
+          },
+        },
+      });
+    }
+
+    const nonStatusKeys = Object.keys(data).filter(
+      (k) => k !== "status" && data[k] !== undefined
+    );
+
+    if (!isStatusChanged && nonStatusKeys.length > 0) {
+      await tx.activity.create({
+        data: {
+          userId,
+          projectId: id,
+          action: "PROJECT_UPDATED",
+        },
+      });
+    }
+
+    return updatedProject;
   });
 }
 

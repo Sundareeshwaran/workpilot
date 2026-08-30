@@ -164,9 +164,12 @@ export default function ProjectTable({
                       <Briefcase className="size-4" />
                     </div>
                     <div className="min-w-0">
-                      <div className="font-medium text-foreground text-sm truncate group-hover:text-primary transition-colors">
+                      <Link
+                        href={`/projects/${project.id}`}
+                        className="font-medium text-foreground text-sm truncate block group-hover:text-primary transition-colors hover:underline"
+                      >
                         {project.name}
-                      </div>
+                      </Link>
                       {project.description && (
                         <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5 max-w-[280px]">
                           {project.description}

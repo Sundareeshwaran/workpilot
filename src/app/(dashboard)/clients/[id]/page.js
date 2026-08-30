@@ -18,8 +18,6 @@ import {
   FileText,
   IndianRupee,
   Clock,
-  CheckCircle2,
-  AlertCircle,
   Briefcase,
 } from "lucide-react";
 import ClientDetailActions from "@/components/clients/client-detail-actions";
@@ -37,7 +35,7 @@ export default async function ClientDetailPage({ params }) {
     notFound();
   }
 
-  const client = await prisma.client.findUnique({
+  const rawClient = await prisma.client.findUnique({
     where: { id },
     include: {
       projects: {
@@ -53,9 +51,41 @@ export default async function ClientDetailPage({ params }) {
   });
 
   // Ensure client exists and belongs to current user
-  if (!client || client.userId !== session.user.id) {
+  if (!rawClient || rawClient.userId !== session.user.id) {
     notFound();
   }
+
+  // Convert Prisma Decimal and Date objects into serializable plain JSON
+  const client = {
+    ...rawClient,
+    createdAt: rawClient.createdAt.toISOString(),
+    updatedAt: rawClient.updatedAt.toISOString(),
+    projects: (rawClient.projects || []).map((project) => ({
+      ...project,
+      budget: project.budget !== null && project.budget !== undefined ? Number(project.budget) : null,
+      startDate: project.startDate ? project.startDate.toISOString() : null,
+      dueDate: project.dueDate ? project.dueDate.toISOString() : null,
+      createdAt: project.createdAt.toISOString(),
+      updatedAt: project.updatedAt.toISOString(),
+    })),
+    invoices: (rawClient.invoices || []).map((inv) => ({
+      ...inv,
+      total: Number(inv.total || 0),
+      subtotal: inv.subtotal ? Number(inv.subtotal) : 0,
+      tax: inv.tax ? Number(inv.tax) : 0,
+      discount: inv.discount ? Number(inv.discount) : 0,
+      issueDate: inv.issueDate ? inv.issueDate.toISOString() : null,
+      dueDate: inv.dueDate ? inv.dueDate.toISOString() : null,
+      createdAt: inv.createdAt.toISOString(),
+      updatedAt: inv.updatedAt.toISOString(),
+      items: (inv.items || []).map((item) => ({
+        ...item,
+        rate: Number(item.rate || 0),
+        amount: Number(item.amount || 0),
+        createdAt: item.createdAt.toISOString(),
+      })),
+    })),
+  };
 
   // Compute revenue and financials
   const paidInvoices = client.invoices.filter((inv) => inv.status === "PAID");

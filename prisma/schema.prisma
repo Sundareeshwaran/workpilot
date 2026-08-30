@@ -126,8 +126,9 @@ model Project {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
-  tasks    Task[]
-  invoices Invoice[]
+  tasks      Task[]
+  invoices   Invoice[]
+  activities Activity[]
 
   @@index([userId])
   @@index([clientId])
@@ -240,15 +241,18 @@ model Payment {
 model Activity {
   id String @id @default(cuid())
 
-  userId String
+  userId    String
+  projectId String
 
-  action String
-
-  entityType String
-
-  entityId String
+  action  String
+  details Json?
 
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([projectId])
+  @@index([createdAt])
 }

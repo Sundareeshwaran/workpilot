@@ -51,6 +51,14 @@ import {
 import ProjectStatusBadge from "@/components/projects/project-status-badge";
 import ProjectPriorityBadge from "@/components/projects/project-priority-badge";
 import ProjectForm from "@/components/projects/project-form";
+import ProjectActivity from "@/components/projects/project-activity";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 function formatCurrency(amount, currency = "INR") {
   if (amount === null || amount === undefined || amount === "")
@@ -96,6 +104,7 @@ export default function ProjectDetails({ project: initialProject }) {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [activityRefreshKey, setActivityRefreshKey] = useState(0);
 
   const daysRemaining = calculateDaysRemaining(project?.dueDate);
   const isOverdue =
@@ -139,9 +148,69 @@ export default function ProjectDetails({ project: initialProject }) {
     }
   };
 
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [updatingPriority, setUpdatingPriority] = useState(false);
+
+  const handleStatusChange = async (newStatus) => {
+    if (newStatus === project.status || updatingStatus) return;
+
+    try {
+      setUpdatingStatus(true);
+      const res = await fetch(`/api/projects/${project.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Failed to update project status");
+      }
+
+      setProject(data.project);
+      setActivityRefreshKey((k) => k + 1);
+      toast.success(`Project status changed to ${newStatus.replace("_", " ")}`);
+      router.refresh();
+    } catch (err) {
+      console.error("STATUS UPDATE ERROR:", err);
+      toast.error(err.message || "Failed to update status");
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
+  const handlePriorityChange = async (newPriority) => {
+    if (newPriority === project.priority || updatingPriority) return;
+
+    try {
+      setUpdatingPriority(true);
+      const res = await fetch(`/api/projects/${project.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priority: newPriority }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Failed to update project priority");
+      }
+
+      setProject(data.project);
+      setActivityRefreshKey((k) => k + 1);
+      toast.success(`Project priority changed to ${newPriority}`);
+      router.refresh();
+    } catch (err) {
+      console.error("PRIORITY UPDATE ERROR:", err);
+      toast.error(err.message || "Failed to update priority");
+    } finally {
+      setUpdatingPriority(false);
+    }
+  };
+
   const handleEditSuccess = (updatedProject) => {
     setProject(updatedProject);
     setEditOpen(false);
+    setActivityRefreshKey((k) => k + 1);
     router.refresh();
   };
 
@@ -170,8 +239,56 @@ export default function ProjectDetails({ project: initialProject }) {
               <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
                 {project.name}
               </h1>
-              <ProjectStatusBadge status={project.status} />
-              <ProjectPriorityBadge priority={project.priority} />
+
+              {/* Status Selector Dropdown */}
+              <div className="flex items-center gap-1.5">
+                <Select
+                  value={project.status}
+                  onValueChange={handleStatusChange}
+                  disabled={updatingStatus}
+                >
+                  <SelectTrigger className="h-7 text-xs border rounded-full px-2.5 bg-background/50 hover:bg-background cursor-pointer">
+                    <SelectValue>
+                      <ProjectStatusBadge status={project.status} />
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent align="start">
+                    <SelectItem value="DRAFT">Draft</SelectItem>
+                    <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                    <SelectItem value="REVIEW">In Review</SelectItem>
+                    <SelectItem value="COMPLETED">Completed</SelectItem>
+                    <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+                {updatingStatus && (
+                  <Loader2 className="size-3.5 animate-spin text-primary" />
+                )}
+              </div>
+
+              {/* Priority Selector Dropdown */}
+              <div className="flex items-center gap-1.5">
+                <Select
+                  value={project.priority}
+                  onValueChange={handlePriorityChange}
+                  disabled={updatingPriority}
+                >
+                  <SelectTrigger className="h-7 text-xs border rounded-full px-2.5 bg-background/50 hover:bg-background cursor-pointer">
+                    <SelectValue>
+                      <ProjectPriorityBadge priority={project.priority} />
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent align="start">
+                    <SelectItem value="LOW">Low</SelectItem>
+                    <SelectItem value="MEDIUM">Medium</SelectItem>
+                    <SelectItem value="HIGH">High</SelectItem>
+                    <SelectItem value="URGENT">Urgent</SelectItem>
+                  </SelectContent>
+                </Select>
+                {updatingPriority && (
+                  <Loader2 className="size-3.5 animate-spin text-primary" />
+                )}
+              </div>
+
               {isOverdue && (
                 <Badge
                   variant="outline"
@@ -542,6 +659,12 @@ export default function ProjectDetails({ project: initialProject }) {
               )}
             </CardContent>
           </Card>
+
+          {/* Activity Timeline Section */}
+          <ProjectActivity
+            projectId={project.id}
+            refreshTrigger={activityRefreshKey}
+          />
         </div>
       </div>
 

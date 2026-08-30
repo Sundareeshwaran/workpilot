@@ -24,11 +24,12 @@ export default function SearchClients({ className }) {
 
   const containerRef = useRef(null);
   const inputRef = useRef(null);
+  const isFirstRender = useRef(true);
 
   // Debounce for 350ms
   const debouncedSearch = useDebounce(search, 350);
 
-  // Synchronize state if URL search param changes externally
+  // Synchronize state if URL search param changes externally (e.g. browser back/forward)
   useEffect(() => {
     const currentParam = searchParams.get("search") || "";
     setSearch(currentParam);
@@ -61,22 +62,34 @@ export default function SearchClients({ className }) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Live fetch + URL sync on debounced value change
+  // 1. Sync debounced search to URL params ONLY when value actually changes
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
+    const trimmed = debouncedSearch.trim();
+    const currentUrlParam = searchParams.get("search") || "";
+
+    if (trimmed !== currentUrlParam) {
+      startTransition(() => {
+        const params = new URLSearchParams(searchParams.toString());
+        if (trimmed) {
+          params.set("search", trimmed);
+        } else {
+          params.delete("search");
+        }
+        const query = params.toString();
+        router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+      });
+    }
+  }, [debouncedSearch, pathname, router, searchParams]);
+
+  // 2. Fetch live dropdown results if focused and has content
   useEffect(() => {
     const trimmed = debouncedSearch.trim();
 
-    // 1. Update URL query params
-    startTransition(() => {
-      const params = new URLSearchParams(searchParams.toString());
-      if (trimmed) {
-        params.set("search", trimmed);
-      } else {
-        params.delete("search");
-      }
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-    });
-
-    // 2. Fetch live dropdown results if focused and has content
     if (trimmed.length > 0) {
       setLoading(true);
       fetch(`/api/clients?search=${encodeURIComponent(trimmed)}`)
@@ -102,7 +115,7 @@ export default function SearchClients({ className }) {
       setIsOpen(false);
       setLoading(false);
     }
-  }, [debouncedSearch, isFocused, pathname, router, searchParams]);
+  }, [debouncedSearch, isFocused]);
 
   const handleClear = () => {
     setSearch("");
@@ -112,12 +125,12 @@ export default function SearchClients({ className }) {
 
     const params = new URLSearchParams(searchParams.toString());
     params.delete("search");
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
   };
 
   const handleSelectClient = (client) => {
     setIsOpen(false);
-    // You can scroll to or filter specifically for this client
     setSearch(client.name);
   };
 
