@@ -16,12 +16,21 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import ProjectFilters from "@/components/projects/project-filters";
 import ProjectTable from "@/components/projects/project-table";
+import ProjectPagination from "@/components/projects/project-pagination";
 import { useDebounce } from "@/hooks/use-debounce";
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Pagination states
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalProjects, setTotalProjects] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [hasPreviousPage, setHasPreviousPage] = useState(false);
 
   // Filter & sorting states
   const [search, setSearch] = useState("");
@@ -35,12 +44,19 @@ export default function ProjectsPage() {
   // Debounce search input to avoid spamming the API
   const debouncedSearch = useDebounce(search, 300);
 
+  // Reset to page 1 when search or filters change
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, status, priority, sortBy, sortOrder]);
+
   const fetchProjects = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
       const params = new URLSearchParams();
+      params.set("page", page.toString());
+      params.set("limit", limit.toString());
       if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
       if (status) params.set("status", status);
       if (priority) params.set("priority", priority);
@@ -55,13 +71,17 @@ export default function ProjectsPage() {
       }
 
       setProjects(data.projects || []);
+      setTotalProjects(data.totalProjects ?? data.pagination?.totalProjects ?? 0);
+      setTotalPages(data.totalPages ?? data.pagination?.totalPages ?? 1);
+      setHasNextPage(Boolean(data.hasNextPage ?? data.pagination?.hasNextPage));
+      setHasPreviousPage(Boolean(data.hasPreviousPage ?? data.pagination?.hasPreviousPage));
     } catch (err) {
       console.error("FETCH PROJECTS ERROR:", err);
       setError(err.message || "Something went wrong while fetching projects.");
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, status, priority, sortBy, sortOrder]);
+  }, [page, limit, debouncedSearch, status, priority, sortBy, sortOrder]);
 
   useEffect(() => {
     fetchProjects();
@@ -73,11 +93,13 @@ export default function ProjectsPage() {
     setPriority("");
     setSortBy("createdAt");
     setSortOrder("desc");
+    setPage(1);
   };
 
   const handleSortChange = (newSortBy, newSortOrder) => {
     setSortBy(newSortBy);
     setSortOrder(newSortOrder);
+    setPage(1);
   };
 
   const hasActiveFilters = Boolean(
@@ -97,8 +119,8 @@ export default function ProjectsPage() {
             <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
             {!loading && (
               <span className="inline-flex items-center justify-center px-2.5 py-0.5 text-xs font-semibold rounded-full bg-primary/10 text-primary">
-                {projects.length}{" "}
-                {projects.length === 1 ? "project" : "projects"}
+                {totalProjects}{" "}
+                {totalProjects === 1 ? "project" : "projects"}
               </span>
             )}
           </div>
@@ -201,13 +223,25 @@ export default function ProjectsPage() {
           ))}
         </div>
       ) : projects.length > 0 ? (
-        /* Project Table */
-        <ProjectTable
-          projects={projects}
-          sortBy={sortBy}
-          sortOrder={sortOrder}
-          onSort={handleSortChange}
-        />
+        /* Project Table & Pagination */
+        <div className="space-y-2">
+          <ProjectTable
+            projects={projects}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            onSort={handleSortChange}
+          />
+          <ProjectPagination
+            currentPage={page}
+            totalPages={totalPages}
+            totalItems={totalProjects}
+            pageSize={limit}
+            onPageChange={(newPage) => setPage(newPage)}
+            hasNextPage={hasNextPage}
+            hasPreviousPage={hasPreviousPage}
+            isLoading={loading}
+          />
+        </div>
       ) : hasActiveFilters ? (
         /* Empty State when filters yield no results */
         <div className="flex flex-col items-center justify-center p-12 text-center rounded-2xl border border-dashed border-border/80 bg-card/40">

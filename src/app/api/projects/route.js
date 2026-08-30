@@ -115,6 +115,18 @@ export async function GET(request) {
     const sortBy = searchParams.get("sortBy") || "createdAt";
     const sortOrder = searchParams.get("sortOrder") === "asc" ? "asc" : "desc";
 
+    // Pagination query parameters
+    const rawPage = parseInt(searchParams.get("page"), 10);
+    const rawLimit = parseInt(searchParams.get("limit"), 10);
+
+    const page = !isNaN(rawPage) && rawPage >= 1 ? rawPage : 1;
+    let limit = !isNaN(rawLimit) && rawLimit >= 1 ? rawLimit : 10;
+    if (limit > 100) {
+      limit = 100;
+    }
+
+    const skip = (page - 1) * limit;
+
     const where = {
       userId: session.user.id,
     };
@@ -167,21 +179,30 @@ export async function GET(request) {
       ? sortBy
       : "createdAt";
 
-    const projects = await prisma.project.findMany({
-      where,
-      include: {
-        client: {
-          select: {
-            id: true,
-            name: true,
-            companyName: true,
+    const [totalProjects, projects] = await Promise.all([
+      prisma.project.count({ where }),
+      prisma.project.findMany({
+        where,
+        include: {
+          client: {
+            select: {
+              id: true,
+              name: true,
+              companyName: true,
+            },
           },
         },
-      },
-      orderBy: {
-        [finalSortBy]: sortOrder,
-      },
-    });
+        orderBy: {
+          [finalSortBy]: sortOrder,
+        },
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    const totalPages = Math.ceil(totalProjects / limit);
+    const hasNextPage = page < totalPages;
+    const hasPreviousPage = page > 1;
 
     const formattedProjects = projects.map((project) => ({
       id: project.id,
@@ -201,8 +222,23 @@ export async function GET(request) {
     return NextResponse.json({
       success: true,
       projects: formattedProjects,
+      pagination: {
+        page,
+        limit,
+        totalProjects,
+        totalPages,
+        hasNextPage,
+        hasPreviousPage,
+      },
+      page,
+      limit,
+      totalProjects,
+      totalPages,
+      hasNextPage,
+      hasPreviousPage,
     });
   } catch (error) {
+    console.error("FETCH PROJECTS ERROR:", error);
     return NextResponse.json(
       {
         success: false,
