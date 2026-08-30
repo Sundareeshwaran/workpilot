@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import { getProjectById } from "@/services/project.service";
 import ProjectDetails from "@/components/projects/project-details";
 
 export default async function ProjectDetailPage({ params }) {
@@ -16,29 +16,9 @@ export default async function ProjectDetailPage({ params }) {
     notFound();
   }
 
-  const project = await prisma.project.findFirst({
-    where: {
-      id,
-      userId: session.user.id,
-    },
-    include: {
-      client: {
-        select: {
-          id: true,
-          name: true,
-          companyName: true,
-          email: true,
-          phone: true,
-          website: true,
-        },
-      },
-      tasks: {
-        orderBy: { createdAt: "desc" },
-      },
-      invoices: {
-        orderBy: { createdAt: "desc" },
-      },
-    },
+  const project = await getProjectById({
+    id,
+    userId: session.user.id,
   });
 
   if (!project) {
@@ -53,7 +33,7 @@ export default async function ProjectDetailPage({ params }) {
     dueDate: project.dueDate ? project.dueDate.toISOString() : null,
     createdAt: project.createdAt.toISOString(),
     updatedAt: project.updatedAt.toISOString(),
-    invoices: project.invoices.map((inv) => ({
+    invoices: (project.invoices || []).map((inv) => ({
       ...inv,
       total: Number(inv.total || 0),
       subtotal: inv.subtotal ? Number(inv.subtotal) : 0,
@@ -64,7 +44,7 @@ export default async function ProjectDetailPage({ params }) {
       createdAt: inv.createdAt.toISOString(),
       updatedAt: inv.updatedAt.toISOString(),
     })),
-    tasks: project.tasks.map((task) => ({
+    tasks: (project.tasks || []).map((task) => ({
       ...task,
       dueDate: task.dueDate ? task.dueDate.toISOString() : null,
       createdAt: task.createdAt.toISOString(),

@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
 import { projectSchema } from "@/validations/project.validation";
+import {
+  getProjectById,
+  updateProject,
+  deleteProject,
+} from "@/services/project.service";
 
 // GET /api/projects/[id]
 export async function GET(request, { params }) {
@@ -30,29 +34,9 @@ export async function GET(request, { params }) {
       );
     }
 
-    const project = await prisma.project.findFirst({
-      where: {
-        id,
-        userId: session.user.id,
-      },
-      include: {
-        client: {
-          select: {
-            id: true,
-            name: true,
-            companyName: true,
-            email: true,
-            phone: true,
-            website: true,
-          },
-        },
-        tasks: {
-          orderBy: { createdAt: "desc" },
-        },
-        invoices: {
-          orderBy: { createdAt: "desc" },
-        },
-      },
+    const project = await getProjectById({
+      id,
+      userId: session.user.id,
     });
 
     if (!project) {
@@ -76,7 +60,7 @@ export async function GET(request, { params }) {
         success: false,
         message: "Failed to fetch project",
       },
-      { status: 500 },
+      { status: error.statusCode || 500 },
     );
   }
 }
@@ -108,23 +92,6 @@ export async function PATCH(request, { params }) {
       );
     }
 
-    const existingProject = await prisma.project.findFirst({
-      where: {
-        id,
-        userId: session.user.id,
-      },
-    });
-
-    if (!existingProject) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Project not found",
-        },
-        { status: 404 },
-      );
-    }
-
     const body = await request.json();
     const validateFields = projectSchema.safeParse(body);
 
@@ -139,58 +106,10 @@ export async function PATCH(request, { params }) {
       );
     }
 
-    const data = validateFields.data;
-
-    // Verify that the specified client belongs to the user
-    if (data.clientId) {
-      const client = await prisma.client.findFirst({
-        where: {
-          id: data.clientId,
-          userId: session.user.id,
-        },
-      });
-
-      if (!client) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "Client not found or access denied",
-          },
-          { status: 404 },
-        );
-      }
-    }
-
-    const updatedProject = await prisma.project.update({
-      where: { id },
-      data: {
-        name: data.name,
-        clientId: data.clientId,
-        description: data.description || null,
-        status: data.status,
-        priority: data.priority,
-        budget: data.budget ?? null,
-        startDate: data.startDate ? new Date(data.startDate) : null,
-        dueDate: data.dueDate ? new Date(data.dueDate) : null,
-      },
-      include: {
-        client: {
-          select: {
-            id: true,
-            name: true,
-            companyName: true,
-            email: true,
-            phone: true,
-            website: true,
-          },
-        },
-        tasks: {
-          orderBy: { createdAt: "desc" },
-        },
-        invoices: {
-          orderBy: { createdAt: "desc" },
-        },
-      },
+    const updatedProject = await updateProject({
+      id,
+      userId: session.user.id,
+      data: validateFields.data,
     });
 
     return NextResponse.json({
@@ -203,9 +122,9 @@ export async function PATCH(request, { params }) {
     return NextResponse.json(
       {
         success: false,
-        message: "Failed to update project",
+        message: error.message || "Failed to update project",
       },
-      { status: 500 },
+      { status: error.statusCode || 500 },
     );
   }
 }
@@ -237,25 +156,9 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    const existingProject = await prisma.project.findFirst({
-      where: {
-        id,
-        userId: session.user.id,
-      },
-    });
-
-    if (!existingProject) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Project not found",
-        },
-        { status: 404 },
-      );
-    }
-
-    await prisma.project.delete({
-      where: { id },
+    await deleteProject({
+      id,
+      userId: session.user.id,
     });
 
     return NextResponse.json({
@@ -267,9 +170,9 @@ export async function DELETE(request, { params }) {
     return NextResponse.json(
       {
         success: false,
-        message: "Failed to delete project",
+        message: error.message || "Failed to delete project",
       },
-      { status: 500 },
+      { status: error.statusCode || 500 },
     );
   }
 }

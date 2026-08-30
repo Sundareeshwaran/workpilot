@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { projectSchema } from "@/validations/project.validation";
+import {
+  createProject,
+  getProjects,
+} from "@/services/project.service";
 
 // POST /api/projects/
 export async function POST(request) {
@@ -18,9 +21,7 @@ export async function POST(request) {
       );
     }
 
-    const userId = session.user.id;
     const body = await request.json();
-
     const validateFields = projectSchema.safeParse(body);
 
     if (!validateFields.success) {
@@ -34,37 +35,9 @@ export async function POST(request) {
       );
     }
 
-    const data = validateFields.data;
-
-    const client = await prisma.client.findFirst({
-      where: {
-        id: data.clientId,
-        userId,
-      },
-    });
-
-    if (!client) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Client not found",
-        },
-        { status: 404 },
-      );
-    }
-
-    const project = await prisma.project.create({
-      data: {
-        userId,
-        clientId: data.clientId,
-        name: data.name,
-        description: data.description || null,
-        status: data.status,
-        priority: data.priority,
-        budget: data.budget ?? null,
-        startDate: data.startDate ? new Date(data.startDate) : null,
-        dueDate: data.dueDate ? new Date(data.dueDate) : null,
-      },
+    const project = await createProject({
+      userId: session.user.id,
+      data: validateFields.data,
     });
 
     return NextResponse.json(
@@ -81,10 +54,10 @@ export async function POST(request) {
     return NextResponse.json(
       {
         success: false,
-        message: "Failed to create project",
+        message: error.message || "Failed to create project",
       },
       {
-        status: 500,
+        status: error.statusCode || 500,
       },
     );
   }
@@ -101,9 +74,7 @@ export async function GET(request) {
           success: false,
           message: "Unauthorized",
         },
-        {
-          status: 401,
-        },
+        { status: 401 },
       );
     }
 
@@ -114,128 +85,23 @@ export async function GET(request) {
     const priority = searchParams.get("priority")?.trim() || "";
     const sortBy = searchParams.get("sortBy") || "createdAt";
     const sortOrder = searchParams.get("sortOrder") === "asc" ? "asc" : "desc";
+    const page = searchParams.get("page") || 1;
+    const limit = searchParams.get("limit") || 10;
 
-    // Pagination query parameters
-    const rawPage = parseInt(searchParams.get("page"), 10);
-    const rawLimit = parseInt(searchParams.get("limit"), 10);
-
-    const page = !isNaN(rawPage) && rawPage >= 1 ? rawPage : 1;
-    let limit = !isNaN(rawLimit) && rawLimit >= 1 ? rawLimit : 10;
-    if (limit > 100) {
-      limit = 100;
-    }
-
-    const skip = (page - 1) * limit;
-
-    const where = {
+    const result = await getProjects({
       userId: session.user.id,
-    };
-
-    if (status) {
-      where.status = status;
-    }
-
-    if (priority) {
-      where.priority = priority;
-    }
-
-    if (search) {
-      where.OR = [
-        {
-          name: {
-            contains: search,
-            mode: "insensitive",
-          },
-        },
-        {
-          client: {
-            name: {
-              contains: search,
-              mode: "insensitive",
-            },
-          },
-        },
-        {
-          client: {
-            companyName: {
-              contains: search,
-              mode: "insensitive",
-            },
-          },
-        },
-      ];
-    }
-
-    const allowedSortFields = [
-      "createdAt",
-      "updatedAt",
-      "name",
-      "budget",
-      "startDate",
-      "dueDate",
-    ];
-
-    const finalSortBy = allowedSortFields.includes(sortBy)
-      ? sortBy
-      : "createdAt";
-
-    const [totalProjects, projects] = await Promise.all([
-      prisma.project.count({ where }),
-      prisma.project.findMany({
-        where,
-        include: {
-          client: {
-            select: {
-              id: true,
-              name: true,
-              companyName: true,
-            },
-          },
-        },
-        orderBy: {
-          [finalSortBy]: sortOrder,
-        },
-        skip,
-        take: limit,
-      }),
-    ]);
-
-    const totalPages = Math.ceil(totalProjects / limit);
-    const hasNextPage = page < totalPages;
-    const hasPreviousPage = page > 1;
-
-    const formattedProjects = projects.map((project) => ({
-      id: project.id,
-      name: project.name,
-      description: project.description,
-      status: project.status,
-      priority: project.priority,
-      budget: project.budget,
-      currency: project.currency,
-      startDate: project.startDate,
-      dueDate: project.dueDate,
-      createdAt: project.createdAt,
-      updatedAt: project.updatedAt,
-      client: project.client,
-    }));
+      page,
+      limit,
+      search,
+      status,
+      priority,
+      sortBy,
+      sortOrder,
+    });
 
     return NextResponse.json({
       success: true,
-      projects: formattedProjects,
-      pagination: {
-        page,
-        limit,
-        totalProjects,
-        totalPages,
-        hasNextPage,
-        hasPreviousPage,
-      },
-      page,
-      limit,
-      totalProjects,
-      totalPages,
-      hasNextPage,
-      hasPreviousPage,
+      ...result,
     });
   } catch (error) {
     console.error("FETCH PROJECTS ERROR:", error);

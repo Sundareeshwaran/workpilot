@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -70,16 +70,7 @@ export default function AddProject({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (open) {
-      fetchClients();
-    } else {
-      setFormData(initialFormData);
-      setError("");
-    }
-  }, [open]);
-
-  const fetchClients = async () => {
+  const fetchClients = useCallback(async () => {
     try {
       setLoadingClients(true);
       setError("");
@@ -98,7 +89,16 @@ export default function AddProject({
     } finally {
       setLoadingClients(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      fetchClients();
+    } else {
+      setFormData(initialFormData);
+      setError("");
+    }
+  }, [open, fetchClients]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -89,9 +89,25 @@ export default function ProjectForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
+  const fetchClients = useCallback(async () => {
+    try {
+      setLoadingClients(true);
+      const response = await fetch("/api/clients");
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setClients(data.clients || []);
+      }
+    } catch (err) {
+      console.error("FETCH CLIENTS ERROR:", err);
+    } finally {
+      setLoadingClients(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchClients();
-  }, []);
+  }, [fetchClients]);
 
   useEffect(() => {
     if (initialData) {
@@ -111,22 +127,6 @@ export default function ProjectForm({
       });
     }
   }, [initialData]);
-
-  const fetchClients = async () => {
-    try {
-      setLoadingClients(true);
-      const response = await fetch("/api/clients");
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        setClients(data.clients || []);
-      }
-    } catch (err) {
-      console.error("FETCH CLIENTS ERROR:", err);
-    } finally {
-      setLoadingClients(false);
-    }
-  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;

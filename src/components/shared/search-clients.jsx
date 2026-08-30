@@ -31,9 +31,7 @@ export default function SearchClients({ className }) {
   // Synchronize state if URL search param changes externally
   useEffect(() => {
     const currentParam = searchParams.get("search") || "";
-    if (currentParam !== search) {
-      setSearch(currentParam);
-    }
+    setSearch(currentParam);
   }, [searchParams]);
 
   // Handle outside click to close the dropdown
@@ -104,7 +102,7 @@ export default function SearchClients({ className }) {
       setIsOpen(false);
       setLoading(false);
     }
-  }, [debouncedSearch]);
+  }, [debouncedSearch, isFocused, pathname, router, searchParams]);
 
   const handleClear = () => {
     setSearch("");
