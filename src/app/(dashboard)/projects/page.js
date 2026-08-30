@@ -17,12 +17,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import ProjectFilters from "@/components/projects/project-filters";
 import ProjectTable from "@/components/projects/project-table";
 import ProjectPagination from "@/components/projects/project-pagination";
+import ProjectStats from "@/components/projects/project-stats";
 import { useDebounce } from "@/hooks/use-debounce";
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [statsRefreshKey, setStatsRefreshKey] = useState(0);
 
   // Pagination states
   const [page, setPage] = useState(1);
@@ -133,7 +135,10 @@ export default function ProjectsPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={fetchProjects}
+            onClick={() => {
+              fetchProjects();
+              setStatsRefreshKey((k) => k + 1);
+            }}
             disabled={loading}
             className="h-9 px-3 gap-1.5"
             title="Refresh projects"
@@ -153,6 +158,9 @@ export default function ProjectsPage() {
           </Button>
         </div>
       </div>
+
+      {/* Project Statistics Overview */}
+      <ProjectStats refreshTrigger={statsRefreshKey} />
 
       {/* Filter Toolbar */}
       <ProjectFilters
@@ -291,6 +299,7 @@ export default function ProjectsPage() {
         onOpenChange={setShowAddProject}
         onSuccess={() => {
           fetchProjects();
+          setStatsRefreshKey((k) => k + 1);
           setShowAddProject(false);
         }}
         onCancel={() => setShowAddProject(false)}
