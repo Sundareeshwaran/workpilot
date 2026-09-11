@@ -5,6 +5,7 @@ import {
   FileText,
   SquareKanban,
   CreditCard,
+  History,
 } from "lucide-react";
 
 export const dashboardRoutes = [
@@ -37,5 +38,10 @@ export const dashboardRoutes = [
     name: "Payments",
     href: "/payments",
     icon: CreditCard,
+  },
+  {
+    name: "Audit & Logs",
+    href: "/audit-logs",
+    icon: History,
   },
 ];

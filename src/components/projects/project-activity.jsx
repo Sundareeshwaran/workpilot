@@ -46,10 +46,50 @@ function getActionDetails(action, details) {
         badgeClass: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800",
         iconBg: "bg-blue-500/10 text-blue-600 dark:text-blue-400 ring-blue-500/20",
       };
+    case "TASK_CREATED":
+      return {
+        label: "Task Created",
+        description: details?.taskTitle || details?.title
+          ? `Task "${details.taskTitle || details.title}" was created.`
+          : "A new task was created.",
+        icon: FolderPlus,
+        badgeClass: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800",
+        iconBg: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-emerald-500/20",
+      };
+    case "TASK_STATUS_CHANGED":
+      return {
+        label: "Task Status Changed",
+        description: details?.from && details?.to
+          ? `${details.taskTitle ? `"${details.taskTitle}": ` : ""}${details.from.replace("_", " ")} → ${details.to.replace("_", " ")}`
+          : "Task status was updated.",
+        icon: RefreshCw,
+        badgeClass: "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-200 dark:border-sky-800",
+        iconBg: "bg-sky-500/10 text-sky-600 dark:text-sky-400 ring-sky-500/20",
+      };
+    case "TASK_UPDATED":
+      return {
+        label: "Task Updated",
+        description: details?.taskTitle
+          ? `Task "${details.taskTitle}" details were updated.`
+          : "Task details were updated.",
+        icon: Edit3,
+        badgeClass: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800",
+        iconBg: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 ring-indigo-500/20",
+      };
+    case "TASK_DELETED":
+      return {
+        label: "Task Deleted",
+        description: details?.taskTitle
+          ? `Task "${details.taskTitle}" was deleted.`
+          : "A task was deleted.",
+        icon: ActivityIcon,
+        badgeClass: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800",
+        iconBg: "bg-rose-500/10 text-rose-600 dark:text-rose-400 ring-rose-500/20",
+      };
     default:
       return {
         label: action.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()),
-        description: "Project activity was recorded.",
+        description: "Activity was recorded.",
         icon: ActivityIcon,
         badgeClass: "bg-primary/10 text-primary border-primary/20",
         iconBg: "bg-primary/10 text-primary ring-primary/20",
@@ -90,11 +130,7 @@ export default function ProjectActivity({ projectId, refreshTrigger }) {
         throw new Error(data.message || "Failed to load project activity");
       }
 
-      const allActivities = data.activities || [];
-      const filtered = allActivities.filter(
-        (act) => act.action !== "TASK_STATUS_CHANGED",
-      );
-      setActivities(filtered);
+      setActivities(data.activities || []);
     } catch (err) {
       console.error("FETCH ACTIVITIES ERROR:", err);
       setError(err.message || "Failed to load activities");

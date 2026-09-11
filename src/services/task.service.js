@@ -208,6 +208,16 @@ export async function updateTask({ id, userId, data }) {
   const isStatusChanged =
     data.status !== undefined && data.status !== existingTask.status;
 
+  const hasOtherChanges =
+    (data.title !== undefined && data.title.trim() !== existingTask.title) ||
+    (data.description !== undefined &&
+      (data.description ? data.description.trim() : null) !==
+        existingTask.description) ||
+    (data.priority !== undefined && data.priority !== existingTask.priority) ||
+    (data.dueDate !== undefined &&
+      (data.dueDate ? new Date(data.dueDate).getTime() : null) !==
+        (existingTask.dueDate ? new Date(existingTask.dueDate).getTime() : null));
+
   return await prisma.$transaction(async (tx) => {
     const updatedTask = await tx.task.update({
       where: { id },
@@ -221,6 +231,34 @@ export async function updateTask({ id, userId, data }) {
         },
       },
     });
+
+    if (isStatusChanged) {
+      await tx.activity.create({
+        data: {
+          userId,
+          projectId: updatedTask.projectId,
+          action: "TASK_STATUS_CHANGED",
+          details: {
+            taskId: id,
+            taskTitle: updatedTask.title,
+            from: existingTask.status,
+            to: data.status,
+          },
+        },
+      });
+    } else if (hasOtherChanges) {
+      await tx.activity.create({
+        data: {
+          userId,
+          projectId: updatedTask.projectId,
+          action: "TASK_UPDATED",
+          details: {
+            taskId: id,
+            taskTitle: updatedTask.title,
+          },
+        },
+      });
+    }
 
     return updatedTask;
   });
