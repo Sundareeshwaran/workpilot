@@ -222,34 +222,6 @@ export async function updateTask({ id, userId, data }) {
       },
     });
 
-    if (isStatusChanged) {
-      await tx.activity.create({
-        data: {
-          userId,
-          projectId: updatedTask.projectId,
-          action: "TASK_STATUS_CHANGED",
-          details: {
-            taskId: id,
-            taskTitle: updatedTask.title,
-            from: existingTask.status,
-            to: data.status,
-          },
-        },
-      });
-    } else {
-      await tx.activity.create({
-        data: {
-          userId,
-          projectId: updatedTask.projectId,
-          action: "TASK_UPDATED",
-          details: {
-            taskId: id,
-            taskTitle: updatedTask.title,
-          },
-        },
-      });
-    }
-
     return updatedTask;
   });
 }

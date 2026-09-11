@@ -121,6 +121,45 @@ export default function ProjectDetails({ project: initialProject }) {
     setActivityRefreshKey((k) => k + 1);
   }
 
+  function handleTaskUpdated(updatedTask) {
+    setProject((prev) => ({
+      ...prev,
+      tasks: (prev?.tasks || []).map((t) =>
+        t.id === updatedTask.id ? { ...t, ...updatedTask } : t,
+      ),
+    }));
+    setActivityRefreshKey((k) => k + 1);
+  }
+
+  function handleTaskDeleted(taskId) {
+    setProject((prev) => ({
+      ...prev,
+      tasks: (prev?.tasks || []).filter((t) => t.id !== taskId),
+    }));
+    setActivityRefreshKey((k) => k + 1);
+  }
+
+  async function handleListTaskStatusChange(taskId, newStatus) {
+    try {
+      const res = await fetch(`/api/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Failed to update task status");
+      }
+      handleTaskUpdated(data.task);
+      toast.success(
+        `Task status updated to ${newStatus.replace("_", " ").toLowerCase()}`,
+      );
+    } catch (err) {
+      console.error("TASK STATUS UPDATE ERROR:", err);
+      toast.error(err.message || "Failed to update task status");
+    }
+  }
+
   const daysRemaining = calculateDaysRemaining(project?.dueDate);
   const isOverdue =
     daysRemaining !== null &&
@@ -572,12 +611,19 @@ export default function ProjectDetails({ project: initialProject }) {
           {/* Tasks Section */}
           <Card className="shadow-xs">
             <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <div>
-                <CardTitle className="text-base font-semibold">
-                  Project Tasks
-                </CardTitle>
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-base font-semibold">
+                    Project Tasks
+                  </CardTitle>
+                  {project.tasks && project.tasks.length > 0 && (
+                    <Badge variant="secondary" className="text-xs px-2 py-0">
+                      {project.tasks.length}
+                    </Badge>
+                  )}
+                </div>
                 <CardDescription className="text-xs">
-                  Key milestones, deliverables, and to-do items
+                  Deliverables, milestones, and assigned tasks for this project
                 </CardDescription>
               </div>
               <Button
@@ -642,7 +688,23 @@ export default function ProjectDetails({ project: initialProject }) {
                           {task.priority && (
                             <TaskPriorityBadge priority={task.priority} />
                           )}
-                          <TaskStatusBadge status={task.status} />
+                          <Select
+                            value={task.status}
+                            onValueChange={(val) =>
+                              handleListTaskStatusChange(task.id, val)
+                            }
+                          >
+                            <SelectTrigger className="h-6.5 text-[11px] border-none bg-transparent hover:bg-muted/50 p-0 shadow-none cursor-pointer">
+                              <SelectValue>
+                                <TaskStatusBadge status={task.status} />
+                              </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent align="end">
+                              <SelectItem value="TODO">To Do</SelectItem>
+                              <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                              <SelectItem value="DONE">Done</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
                     );

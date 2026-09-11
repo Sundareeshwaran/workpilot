@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -21,25 +21,44 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, FolderKanban } from "lucide-react";
 
 export default function AddTaskDialog({
   open,
   onOpenChange,
   projectId,
+  projects = [],
   onTaskCreated,
+  defaultStatus = "TODO",
 }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [status, setStatus] = useState("TODO");
+  const [status, setStatus] = useState(defaultStatus);
   const [priority, setPriority] = useState("MEDIUM");
+  const [selectedProjectId, setSelectedProjectId] = useState(
+    projectId || projects[0]?.id || "",
+  );
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setStatus(defaultStatus || "TODO");
+      if (projectId) {
+        setSelectedProjectId(projectId);
+      } else if (projects.length > 0 && !selectedProjectId) {
+        setSelectedProjectId(projects[0].id);
+      }
+    }
+  }, [open, defaultStatus, projectId, projects, selectedProjectId]);
 
   function resetForm() {
     setTitle("");
     setDescription("");
-    setStatus("TODO");
+    setStatus(defaultStatus || "TODO");
     setPriority("MEDIUM");
+    if (!projectId && projects.length > 0) {
+      setSelectedProjectId(projects[0].id);
+    }
   }
 
   function handleOpenChange(nextOpen) {
@@ -56,10 +75,16 @@ export default function AddTaskDialog({
       return;
     }
 
+    const targetProjectId = projectId || selectedProjectId;
+    if (!targetProjectId) {
+      toast.error("Please select a project for this task");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const response = await fetch(`/api/projects/${projectId}/tasks`, {
+      const response = await fetch(`/api/projects/${targetProjectId}/tasks`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -95,14 +120,40 @@ export default function AddTaskDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Plus className="size-4 text-primary" />
-            Add New Task
+            Add New Task / Note
           </DialogTitle>
           <DialogDescription>
-            Create a task to track deliverables and milestones for this project.
+            Create a task or note to track deliverables and milestones.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
+          {/* Project Selection (shown if projects list is available and no fixed projectId is set) */}
+          {!projectId && projects && projects.length > 0 && (
+            <div className="space-y-1.5">
+              <Label htmlFor="task-project" className="text-xs font-medium flex items-center gap-1.5">
+                <FolderKanban className="size-3.5 text-primary" />
+                <span>Project</span> <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={selectedProjectId}
+                onValueChange={setSelectedProjectId}
+                disabled={loading}
+              >
+                <SelectTrigger id="task-project" className="w-full">
+                  <SelectValue placeholder="Select project" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.map((proj) => (
+                    <SelectItem key={proj.id} value={proj.id}>
+                      {proj.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* Title */}
           <div className="space-y-1.5">
             <Label htmlFor="task-title" className="text-xs font-medium">
@@ -110,7 +161,7 @@ export default function AddTaskDialog({
             </Label>
             <Input
               id="task-title"
-              placeholder="e.g. Design homepage wireframe"
+              placeholder="e.g. Design mobile navbar or review copy"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               disabled={loading}
@@ -122,11 +173,11 @@ export default function AddTaskDialog({
           {/* Description */}
           <div className="space-y-1.5">
             <Label htmlFor="task-description" className="text-xs font-medium">
-              Description <span className="text-muted-foreground text-[10px]">(optional)</span>
+              Description / Notes <span className="text-muted-foreground text-[10px]">(optional)</span>
             </Label>
             <Textarea
               id="task-description"
-              placeholder="Add extra context or instructions..."
+              placeholder="Add key notes, design requirements, or instructions..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={loading}

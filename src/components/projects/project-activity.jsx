@@ -90,7 +90,11 @@ export default function ProjectActivity({ projectId, refreshTrigger }) {
         throw new Error(data.message || "Failed to load project activity");
       }
 
-      setActivities(data.activities || []);
+      const allActivities = data.activities || [];
+      const filtered = allActivities.filter(
+        (act) => act.action !== "TASK_STATUS_CHANGED",
+      );
+      setActivities(filtered);
     } catch (err) {
       console.error("FETCH ACTIVITIES ERROR:", err);
       setError(err.message || "Failed to load activities");
