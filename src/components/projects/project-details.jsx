@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
   Calendar,
@@ -22,7 +23,12 @@ import {
   Loader2,
   FileText,
   ListTodo,
+  Plus,
+  Circle,
 } from "lucide-react";
+import TaskStatusBadge from "@/components/tasks/task-status-badge";
+import TaskPriorityBadge from "@/components/tasks/task-priority-badge";
+import AddTaskDialog from "@/components/tasks/add-task-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -105,6 +111,15 @@ export default function ProjectDetails({ project: initialProject }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [activityRefreshKey, setActivityRefreshKey] = useState(0);
+  const [addTaskOpen, setAddTaskOpen] = useState(false);
+
+  function handleTaskCreated(newTask) {
+    setProject((prev) => ({
+      ...prev,
+      tasks: [newTask, ...(prev?.tasks || [])],
+    }));
+    setActivityRefreshKey((k) => k + 1);
+  }
 
   const daysRemaining = calculateDaysRemaining(project?.dueDate);
   const isOverdue =
@@ -565,33 +580,73 @@ export default function ProjectDetails({ project: initialProject }) {
                   Key milestones, deliverables, and to-do items
                 </CardDescription>
               </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 gap-1.5 text-xs font-medium cursor-pointer"
+                onClick={() => setAddTaskOpen(true)}
+              >
+                <Plus className="size-3.5" />
+                Add Task
+              </Button>
             </CardHeader>
             <CardContent>
               {project.tasks && project.tasks.length > 0 ? (
-                <div className="divide-y">
-                  {project.tasks.map((task) => (
-                    <div
-                      key={task.id}
-                      className="py-3 first:pt-0 last:pb-0 flex items-center justify-between gap-4"
-                    >
-                      <div className="space-y-0.5 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">
-                          {task.title}
-                        </p>
-                        {task.description && (
-                          <p className="text-xs text-muted-foreground line-clamp-1">
-                            {task.description}
-                          </p>
+                <div className="divide-y divide-border/60">
+                  {project.tasks.map((task) => {
+                    const isDone = task.status === "DONE";
+                    return (
+                      <div
+                        key={task.id}
+                        className={cn(
+                          "py-3 first:pt-0 last:pb-0 flex items-center justify-between gap-4 transition-colors",
+                          isDone && "opacity-75",
                         )}
-                      </div>
-                      <Badge
-                        variant="secondary"
-                        className="text-[10px] uppercase font-semibold"
                       >
-                        {task.status}
-                      </Badge>
-                    </div>
-                  ))}
+                        <div className="flex items-start gap-3 min-w-0">
+                          <div className="mt-0.5 shrink-0">
+                            {isDone ? (
+                              <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400" />
+                            ) : task.status === "IN_PROGRESS" ? (
+                              <Clock className="size-4 text-blue-500 dark:text-blue-400" />
+                            ) : (
+                              <Circle className="size-4 text-muted-foreground/50" />
+                            )}
+                          </div>
+                          <div className="space-y-0.5 min-w-0">
+                            <p
+                              className={cn(
+                                "text-sm font-medium truncate",
+                                isDone
+                                  ? "line-through text-muted-foreground"
+                                  : "text-foreground",
+                              )}
+                            >
+                              {task.title}
+                            </p>
+                            {task.description && (
+                              <p
+                                className={cn(
+                                  "text-xs line-clamp-1",
+                                  isDone
+                                    ? "line-through text-muted-foreground/60"
+                                    : "text-muted-foreground",
+                                )}
+                              >
+                                {task.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {task.priority && (
+                            <TaskPriorityBadge priority={task.priority} />
+                          )}
+                          <TaskStatusBadge status={task.status} />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="py-10 text-center">
@@ -599,9 +654,18 @@ export default function ProjectDetails({ project: initialProject }) {
                   <p className="text-sm font-medium text-foreground">
                     No tasks added yet
                   </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
+                  <p className="text-xs text-muted-foreground mt-0.5 mb-4">
                     Tasks and milestones for this project will appear here.
                   </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 gap-1.5 text-xs font-medium cursor-pointer"
+                    onClick={() => setAddTaskOpen(true)}
+                  >
+                    <Plus className="size-3.5" />
+                    Add Task
+                  </Button>
                 </div>
               )}
             </CardContent>
@@ -732,6 +796,16 @@ export default function ProjectDetails({ project: initialProject }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Add Task Dialog */}
+      {project?.id && (
+        <AddTaskDialog
+          open={addTaskOpen}
+          onOpenChange={setAddTaskOpen}
+          projectId={project.id}
+          onTaskCreated={handleTaskCreated}
+        />
+      )}
     </div>
   );
 }

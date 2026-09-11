@@ -1,0 +1,17 @@
+/*
+  Warnings:
+
+  - Added the required column `userId` to the `Task` table without a default value. This is not possible if the table is not empty.
+
+*/
+-- AlterTable
+ALTER TABLE "Task" ADD COLUMN     "userId" TEXT NOT NULL;
+
+-- CreateIndex
+CREATE INDEX "Task_userId_idx" ON "Task"("userId");
+
+-- CreateIndex
+CREATE INDEX "Task_projectId_idx" ON "Task"("projectId");
+
+-- AddForeignKey
+ALTER TABLE "Task" ADD CONSTRAINT "Task_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
