@@ -48,15 +48,17 @@ export default function KanbanCard({
   task,
   onStatusChange,
   onDelete,
+  isUpdating = false,
 }) {
   const [updating, setUpdating] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const isBusy = updating || isUpdating;
   const isDone = task.status === "DONE";
   const formattedDueDate = formatDate(task.dueDate);
   const isOverdue = !isDone && isDateOverdue(task.dueDate);
 
   const handleStatusSelect = async (newStatus) => {
-    if (newStatus === task.status || updating) return;
+    if (newStatus === task.status || isBusy) return;
     setUpdating(true);
     try {
       await onStatusChange?.(task.id, newStatus);
@@ -66,6 +68,10 @@ export default function KanbanCard({
   };
 
   const handleDragStart = (e) => {
+    if (isBusy) {
+      e.preventDefault();
+      return;
+    }
     setIsDragging(true);
     e.dataTransfer.setData(
       "application/json",
@@ -83,16 +89,25 @@ export default function KanbanCard({
 
   return (
     <div
-      draggable={!updating}
+      draggable={!isBusy}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      aria-label={`Task: ${task.title}. Status: ${task.status?.replace("_", " ") || "To Do"}. Priority: ${task.priority || "Medium"}.${isUpdating ? " Updating..." : ""}`}
       className={cn(
-        "group relative rounded-xl border bg-card p-4 shadow-xs transition-all duration-200 hover:shadow-md hover:border-border/80 dark:hover:border-slate-700 cursor-grab active:cursor-grabbing select-none",
+        "group relative rounded-xl border bg-card p-4 shadow-xs transition-all duration-200 hover:shadow-md hover:border-border/80 dark:hover:border-slate-700 select-none",
+        isBusy ? "cursor-not-allowed" : "cursor-grab active:cursor-grabbing",
         isDone && "bg-card/60 opacity-80",
+        isUpdating && !isDragging && "opacity-60 pointer-events-none",
         isDragging &&
           "opacity-40 scale-[0.98] ring-2 ring-primary/40 border-primary shadow-lg rotate-1",
       )}
     >
+      {/* Per-task loading overlay */}
+      {isUpdating && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-background/40 backdrop-blur-[1px]">
+          <Loader2 className="size-5 animate-spin text-primary" />
+        </div>
+      )}
       {/* Top row: Status/Priority badges, project tag, and action dropdown */}
       <div className="flex items-center justify-between gap-2 mb-2.5">
         <div className="flex items-center gap-1.5 flex-wrap min-w-0">
@@ -107,7 +122,7 @@ export default function KanbanCard({
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
-          {updating && <Loader2 className="size-3.5 animate-spin text-primary mr-1" />}
+          {updating && !isUpdating && <Loader2 className="size-3.5 animate-spin text-primary mr-1" />}
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -222,7 +237,7 @@ export default function KanbanCard({
             variant="ghost"
             size="sm"
             onClick={() => handleStatusSelect("IN_PROGRESS")}
-            disabled={updating}
+            disabled={isBusy}
             className="h-6 px-2 text-[11px] text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 gap-1 rounded-md cursor-pointer"
             onMouseDown={(e) => e.stopPropagation()}
           >
@@ -235,7 +250,7 @@ export default function KanbanCard({
             variant="ghost"
             size="sm"
             onClick={() => handleStatusSelect("DONE")}
-            disabled={updating}
+            disabled={isBusy}
             className="h-6 px-2 text-[11px] text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 gap-1 rounded-md cursor-pointer"
             onMouseDown={(e) => e.stopPropagation()}
           >

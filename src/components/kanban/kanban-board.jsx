@@ -15,6 +15,7 @@ export default function KanbanBoard({
   onStatusChange,
   onDelete,
   onDropTask,
+  updatingTaskIds = new Set(),
 }) {
   const tasksByStatus = useMemo(() => {
     const grouped = {
@@ -36,19 +37,21 @@ export default function KanbanBoard({
   }, [tasks]);
 
   return (
-    <div className="w-full">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 items-start">
+    <div className="w-full overflow-x-auto pb-2 -mx-1 px-1">
+      <div className="flex gap-4 lg:gap-6 items-start min-w-[960px]">
         {COLUMNS.map((col) => (
-          <KanbanColumn
-            key={col.status}
-            status={col.status}
-            title={col.title}
-            tasks={tasksByStatus[col.status] || []}
-            onAddTask={onAddTask}
-            onStatusChange={onStatusChange}
-            onDelete={onDelete}
-            onDropTask={onDropTask}
-          />
+          <div key={col.status} className="flex-1 min-w-[300px]">
+            <KanbanColumn
+              status={col.status}
+              title={col.title}
+              tasks={tasksByStatus[col.status] || []}
+              onAddTask={onAddTask}
+              onStatusChange={onStatusChange}
+              onDelete={onDelete}
+              onDropTask={onDropTask}
+              updatingTaskIds={updatingTaskIds}
+            />
+          </div>
         ))}
       </div>
     </div>

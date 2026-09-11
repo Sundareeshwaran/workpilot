@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { Plus, Search, Filter } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -26,66 +26,104 @@ export default function ProjectKanban({
   const [selectedStatus, setSelectedStatus] = useState("TODO");
   const [searchQuery, setSearchQuery] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("ALL");
+  const [updatingTaskIds, setUpdatingTaskIds] = useState(new Set());
 
   const handleOpenAddTask = (status = "TODO") => {
     setSelectedStatus(status);
     setAddTaskOpen(true);
   };
 
-  const handleStatusChange = async (taskId, newStatus) => {
-    try {
-      const res = await fetch(`/api/tasks/${taskId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ status: newStatus }),
-      });
+  // Shared status update handler used by both dropdown and drag-drop
+  const handleStatusChange = useCallback(
+    async (taskId, newStatus) => {
+      // Guard: prevent concurrent updates for the same task
+      if (updatingTaskIds.has(taskId)) return;
 
-      const data = await res.json();
+      try {
+        setUpdatingTaskIds((prev) => new Set(prev).add(taskId));
 
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || "Failed to update task status");
+        const res = await fetch(`/api/tasks/${taskId}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ status: newStatus }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          throw new Error(data.message || "Failed to update task status");
+        }
+
+        toast.success(
+          `Task moved to ${newStatus.replace("_", " ").toLowerCase()}`,
+        );
+        onTaskUpdated?.(data.task);
+      } catch (err) {
+        console.error("KANBAN STATUS CHANGE ERROR:", err);
+        toast.error(err.message || "Failed to update task status");
+        throw err;
+      } finally {
+        setUpdatingTaskIds((prev) => {
+          const next = new Set(prev);
+          next.delete(taskId);
+          return next;
+        });
       }
+    },
+    [updatingTaskIds, onTaskUpdated],
+  );
 
-      toast.success(
-        `Task moved to ${newStatus.replace("_", " ").toLowerCase()}`,
-      );
-      onTaskUpdated?.(data.task);
-    } catch (err) {
-      console.error("KANBAN STATUS CHANGE ERROR:", err);
-      toast.error(err.message || "Failed to update task status");
-      throw err;
-    }
-  };
+  const handleDropTask = useCallback(
+    async (taskId, targetStatus, sourceStatus) => {
+      // Same-status drop: no API call
+      if (targetStatus === sourceStatus) return;
 
-  const handleDropTask = async (taskId, targetStatus, sourceStatus) => {
-    if (targetStatus === sourceStatus) return;
+      // Guard: prevent concurrent updates for the same task
+      if (updatingTaskIds.has(taskId)) return;
 
-    try {
-      const res = await fetch(`/api/tasks/${taskId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ status: targetStatus }),
-      });
+      // 1. Optimistic UI update immediately
+      onTaskUpdated?.({ id: taskId, status: targetStatus });
 
-      const data = await res.json();
+      try {
+        setUpdatingTaskIds((prev) => new Set(prev).add(taskId));
 
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || "Failed to update task status");
+        // 2. PATCH request
+        const res = await fetch(`/api/tasks/${taskId}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ status: targetStatus }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          throw new Error(data.message || "Failed to update task status");
+        }
+
+        // 3. Replace optimistic task with server response
+        toast.success(
+          `Task moved to ${targetStatus.replace("_", " ").toLowerCase()}`,
+        );
+        onTaskUpdated?.(data.task);
+      } catch (err) {
+        console.error("KANBAN DROP TASK ERROR:", err);
+        // 4. Rollback: revert to source status
+        onTaskUpdated?.({ id: taskId, status: sourceStatus });
+        toast.error(err.message || "Failed to move task. Reverting change.");
+      } finally {
+        setUpdatingTaskIds((prev) => {
+          const next = new Set(prev);
+          next.delete(taskId);
+          return next;
+        });
       }
-
-      toast.success(
-        `Task moved to ${targetStatus.replace("_", " ").toLowerCase()}`,
-      );
-      onTaskUpdated?.(data.task);
-    } catch (err) {
-      console.error("KANBAN DROP TASK ERROR:", err);
-      toast.error(err.message || "Failed to update task status");
-    }
-  };
+    },
+    [updatingTaskIds, onTaskUpdated],
+  );
 
   const handleDeleteTask = async (taskId) => {
     try {
@@ -169,6 +207,7 @@ export default function ProjectKanban({
         onStatusChange={handleStatusChange}
         onDelete={handleDeleteTask}
         onDropTask={handleDropTask}
+        updatingTaskIds={updatingTaskIds}
       />
 
       {/* Add Task Modal */}

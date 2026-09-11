@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import {
   Plus,
@@ -36,6 +36,7 @@ export default function NotesKanbanView({
   const [selectedPriority, setSelectedPriority] = useState("ALL");
   const [addTaskOpen, setAddTaskOpen] = useState(false);
   const [defaultStatus, setDefaultStatus] = useState("TODO");
+  const [updatingTaskIds, setUpdatingTaskIds] = useState(new Set());
 
   const handleOpenAddTask = (status = "TODO") => {
     setDefaultStatus(status);
@@ -46,80 +47,108 @@ export default function NotesKanbanView({
     setTasks((prev) => [newTask, ...prev]);
   };
 
-  const handleStatusChange = async (taskId, newStatus) => {
-    try {
-      const res = await fetch(`/api/tasks/${taskId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      });
+  const handleStatusChange = useCallback(
+    async (taskId, newStatus) => {
+      // Guard: prevent concurrent updates for the same task
+      if (updatingTaskIds.has(taskId)) return;
 
-      const data = await res.json();
+      try {
+        setUpdatingTaskIds((prev) => new Set(prev).add(taskId));
 
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || "Failed to update task status");
+        const res = await fetch(`/api/tasks/${taskId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: newStatus }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          throw new Error(data.message || "Failed to update task status");
+        }
+
+        setTasks((prev) =>
+          prev.map((t) => (t.id === taskId ? { ...t, ...data.task } : t)),
+        );
+
+        toast.success(
+          `Task moved to ${newStatus.replace("_", " ").toLowerCase()}`,
+        );
+      } catch (err) {
+        console.error("STATUS UPDATE ERROR:", err);
+        toast.error(err.message || "Failed to update task status");
+        throw err;
+      } finally {
+        setUpdatingTaskIds((prev) => {
+          const next = new Set(prev);
+          next.delete(taskId);
+          return next;
+        });
+      }
+    },
+    [updatingTaskIds],
+  );
+
+  const handleDropTask = useCallback(
+    async (taskId, targetStatus, sourceStatus) => {
+      // 1. Same-status drop: do not make unnecessary API call
+      if (targetStatus === sourceStatus) {
+        return;
       }
 
+      // Guard: prevent concurrent updates for the same task
+      if (updatingTaskIds.has(taskId)) return;
+
+      const taskToMove = tasks.find((t) => t.id === taskId);
+      if (!taskToMove) return;
+
+      // 2. Snapshot previous state for rollback on error
+      const previousTasks = [...tasks];
+
+      // 3. Optimistic UI update immediately
       setTasks((prev) =>
-        prev.map((t) => (t.id === taskId ? { ...t, ...data.task } : t)),
+        prev.map((t) => (t.id === taskId ? { ...t, status: targetStatus } : t)),
       );
 
-      toast.success(
-        `Task moved to ${newStatus.replace("_", " ").toLowerCase()}`,
-      );
-    } catch (err) {
-      console.error("STATUS UPDATE ERROR:", err);
-      toast.error(err.message || "Failed to update task status");
-      throw err;
-    }
-  };
+      try {
+        setUpdatingTaskIds((prev) => new Set(prev).add(taskId));
 
-  const handleDropTask = async (taskId, targetStatus, sourceStatus) => {
-    // 1. Same-status drop: do not make unnecessary API call
-    if (targetStatus === sourceStatus) {
-      return;
-    }
+        // 4. PATCH request reaches /api/tasks/[id]
+        const res = await fetch(`/api/tasks/${taskId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: targetStatus }),
+        });
 
-    const taskToMove = tasks.find((t) => t.id === taskId);
-    if (!taskToMove) return;
+        const data = await res.json();
 
-    // 2. Snapshot previous state for rollback on error
-    const previousTasks = [...tasks];
+        if (!res.ok || !data.success) {
+          throw new Error(data.message || "Failed to update task status");
+        }
 
-    // 3. Optimistic UI update immediately
-    setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, status: targetStatus } : t)),
-    );
+        // 5. Update task with server response
+        setTasks((prev) =>
+          prev.map((t) => (t.id === taskId ? { ...t, ...data.task } : t)),
+        );
 
-    try {
-      // 4. PATCH request reaches /api/tasks/[id]
-      const res = await fetch(`/api/tasks/${taskId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: targetStatus }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || "Failed to update task status");
+        toast.success(
+          `Task moved to ${targetStatus.replace("_", " ").toLowerCase()}`,
+        );
+      } catch (err) {
+        console.error("DRAG & DROP ERROR:", err);
+        // 6. Rollback to previous state on failure
+        setTasks(previousTasks);
+        toast.error(err.message || "Failed to move task. Reverting change.");
+      } finally {
+        setUpdatingTaskIds((prev) => {
+          const next = new Set(prev);
+          next.delete(taskId);
+          return next;
+        });
       }
-
-      // 5. Update task with server response
-      setTasks((prev) =>
-        prev.map((t) => (t.id === taskId ? { ...t, ...data.task } : t)),
-      );
-
-      toast.success(
-        `Task moved to ${targetStatus.replace("_", " ").toLowerCase()}`,
-      );
-    } catch (err) {
-      console.error("DRAG & DROP ERROR:", err);
-      // 6. Rollback to previous state on failure
-      setTasks(previousTasks);
-      toast.error(err.message || "Failed to move task. Reverting change.");
-    }
-  };
+    },
+    [updatingTaskIds, tasks],
+  );
 
   const handleDeleteTask = async (taskId) => {
     try {
@@ -315,6 +344,7 @@ export default function NotesKanbanView({
         onStatusChange={handleStatusChange}
         onDelete={handleDeleteTask}
         onDropTask={handleDropTask}
+        updatingTaskIds={updatingTaskIds}
       />
 
       {/* Add Task / Note Modal */}

@@ -47,6 +47,7 @@ export default function KanbanColumn({
   onStatusChange,
   onDelete,
   onDropTask,
+  updatingTaskIds = new Set(),
 }) {
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -158,6 +159,7 @@ export default function KanbanColumn({
               task={task}
               onStatusChange={onStatusChange}
               onDelete={onDelete}
+              isUpdating={updatingTaskIds.has(task.id)}
             />
           ))
         ) : !isDragOver ? (
