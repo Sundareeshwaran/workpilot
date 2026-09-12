@@ -323,6 +323,21 @@ export async function getInvoiceById({ id, userId }) {
 
   if (!invoice) return null;
 
+  const total = Number(invoice.total);
+  const paidAmount = Number(
+    (invoice.payments || [])
+      .reduce((sum, p) => sum + Number(p.amount), 0)
+      .toFixed(2)
+  );
+  const remainingBalance = Math.max(0, Number((total - paidAmount).toFixed(2)));
+
+  let paymentStatus = "UNPAID";
+  if (paidAmount >= total && total > 0) {
+    paymentStatus = "PAID";
+  } else if (paidAmount > 0) {
+    paymentStatus = "PARTIALLY_PAID";
+  }
+
   const isOverdue =
     invoice.status !== "PAID" &&
     invoice.status !== "CANCELLED" &&
@@ -336,7 +351,23 @@ export async function getInvoiceById({ id, userId }) {
     subtotal: Number(invoice.subtotal),
     tax: Number(invoice.tax),
     discount: Number(invoice.discount),
-    total: Number(invoice.total),
+    total,
+    paidAmount,
+    remainingBalance,
+    paymentStatus,
+    paymentCount: (invoice.payments || []).length,
+    payments: (invoice.payments || []).map((p) => ({
+      id: p.id,
+      invoiceId: p.invoiceId,
+      userId: p.userId,
+      amount: Number(p.amount),
+      paymentMethod: p.paymentMethod,
+      referenceNumber: p.referenceNumber,
+      paymentDate: p.paymentDate,
+      notes: p.notes,
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+    })),
     items: (invoice.items || []).map((it, idx) => ({
       id: it.id,
       invoiceId: it.invoiceId,

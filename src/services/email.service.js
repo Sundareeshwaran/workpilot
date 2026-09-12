@@ -140,7 +140,18 @@ export async function sendInvoiceEmail({
   const clientName = invoice.client?.name || "Valued Client";
   const formattedDueDate = formatDate(invoice.dueDate);
   const formattedIssueDate = formatDate(invoice.issueDate);
+  const payments = invoice.payments || [];
+  const paidAmount = Number(
+    payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0).toFixed(2)
+  );
+  const remainingBalance =
+    invoice.status === "PAID"
+      ? 0
+      : Math.max(0, Number((Number(invoice.total || 0) - paidAmount).toFixed(2)));
+
   const formattedTotal = formatCurrency(invoice.total);
+  const formattedPaid = formatCurrency(paidAmount);
+  const formattedBalance = formatCurrency(remainingBalance);
 
   const defaultNote =
     "Thank you for your business. Please find attached the formal PDF invoice for your review and records. Let us know if you have any questions.";
@@ -212,9 +223,18 @@ export async function sendInvoiceEmail({
             ? `<div class="summary-row"><span>Project:</span><strong>${invoice.project.name}</strong></div>`
             : ""
         }
+        <div class="summary-row">
+          <span>Total Invoiced:</span>
+          <strong>${formattedTotal}</strong>
+        </div>
+        ${
+          paidAmount > 0
+            ? `<div class="summary-row" style="color: #166534;"><span>Amount Paid:</span><strong>-${formattedPaid}</strong></div>`
+            : ""
+        }
         <div class="summary-total">
-          <span>Total Amount Due:</span>
-          <span class="total-amount">${formattedTotal}</span>
+          <span>${paidAmount > 0 ? "Remaining Balance Due:" : "Total Amount Due:"}</span>
+          <span class="total-amount">${paidAmount > 0 ? formattedBalance : formattedTotal}</span>
         </div>
       </div>
 
@@ -238,8 +258,8 @@ Invoice: #${invoiceNum}
 To: ${clientName}
 Issue Date: ${formattedIssueDate}
 Due Date: ${formattedDueDate}
-${invoice.project?.name ? `Project: ${invoice.project.name}\n` : ""}Amount Due: ${formattedTotal}
-
+${invoice.project?.name ? `Project: ${invoice.project.name}\n` : ""}Total Invoiced: ${formattedTotal}
+${paidAmount > 0 ? `Amount Paid: -${formattedPaid}\nRemaining Balance Due: ${formattedBalance}\n` : `Amount Due: ${formattedTotal}\n`}
 Message:
 ${noteText}
 

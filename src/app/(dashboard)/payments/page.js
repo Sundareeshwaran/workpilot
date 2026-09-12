@@ -1,14 +1,48 @@
+import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import LogoutButton from "@/components/shared/logout-button";
+import { getPayments } from "@/services/payment.service";
+import PaymentsPageClient from "@/components/payments/payments-page-client";
 
-export default async function PaymentPage() {
+export const metadata = {
+  title: "Payments & Settlements | Work Pilot",
+  description: "Track, inspect, and reconcile client invoice payments, transactions, and settlement histories.",
+};
+
+export default async function PaymentsPage() {
   const session = await auth();
 
-  return (
-    <div>
-      <h1 className="text-3xl font-bold">Payments</h1>
+  if (!session?.user?.id) {
+    redirect("/login");
+  }
 
-      <p className="text-muted-foreground mt-2">Welcome to WorkPilot CRM.</p>
-    </div>
-  );
+  const initialData = await getPayments({
+    userId: session.user.id,
+    page: 1,
+    limit: 10,
+    sortBy: "paymentDate",
+    sortOrder: "desc",
+  });
+
+  // Serialize Prisma dates and decimals
+  const serializedPayments = (initialData.payments || []).map((p) => ({
+    ...p,
+    amount: Number(p.amount || 0),
+    paymentDate: p.paymentDate ? p.paymentDate.toISOString() : null,
+    createdAt: p.createdAt ? p.createdAt.toISOString() : null,
+    updatedAt: p.updatedAt ? p.updatedAt.toISOString() : null,
+    invoice: p.invoice
+      ? {
+          ...p.invoice,
+          total: Number(p.invoice.total || 0),
+          dueDate: p.invoice.dueDate ? p.invoice.dueDate.toISOString() : null,
+        }
+      : null,
+  }));
+
+  const serializedData = {
+    ...initialData,
+    payments: serializedPayments,
+  };
+
+  return <PaymentsPageClient initialData={serializedData} />;
 }

@@ -97,6 +97,8 @@ export async function getProjects({
 
   const formattedProjects = projects.map((project) => ({
     id: project.id,
+    userId: project.userId,
+    clientId: project.clientId,
     name: project.name,
     description: project.description,
     status: project.status,

@@ -29,6 +29,7 @@ import {
   FileCode2,
   ShieldCheck,
   AlertCircle,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -53,6 +54,8 @@ import InvoiceStatusBadge, { INVOICE_STATUS_CONFIG } from "./invoice-status-badg
 import InvoiceFormDialog from "./invoice-form-dialog";
 import DeleteInvoiceDialog from "./delete-invoice-dialog";
 import SendInvoiceDialog from "./send-invoice-dialog";
+import PaymentHistoryTable from "@/components/payments/payment-history-table";
+import PaymentFormDialog from "@/components/payments/payment-form-dialog";
 
 function formatDate(dateString) {
   if (!dateString) return "—";
@@ -83,6 +86,7 @@ export default function InvoiceDetailPageClient({
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
+  const [paymentFormOpen, setPaymentFormOpen] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
 
@@ -118,6 +122,21 @@ export default function InvoiceDetailPageClient({
     invoice.status !== "CANCELLED" &&
     invoice.dueDate &&
     new Date(invoice.dueDate) < new Date();
+
+  // Dynamic Payment Financials
+  const invoiceTotal = Number(invoice.total || 0);
+  const paidAmount = Number(
+    (invoice.payments || [])
+      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
+      .toFixed(2)
+  );
+  const balanceDue =
+    invoice.status === "PAID"
+      ? 0
+      : Math.max(0, Number((invoiceTotal - paidAmount).toFixed(2)));
+
+  const isFullyPaid = invoice.status === "PAID" || (paidAmount >= invoiceTotal && invoiceTotal > 0);
+  const isPartiallyPaid = paidAmount > 0 && paidAmount < invoiceTotal;
 
   // Status Change Handler
   const handleStatusChange = async (newStatus) => {
@@ -171,12 +190,74 @@ export default function InvoiceDetailPageClient({
     router.push("/invoices");
   };
 
+  // Payment Synchronization Handlers
+  const handlePaymentCreated = (payment) => {
+    setInvoice((prev) => {
+      const newPayments = [payment, ...(prev.payments || [])];
+      const newTotalPaid = Number(
+        newPayments.reduce((s, p) => s + (Number(p.amount) || 0), 0).toFixed(2)
+      );
+      const newStatus =
+        payment.invoice?.status ||
+        (newTotalPaid >= Number(prev.total)
+          ? "PAID"
+          : prev.status === "DRAFT"
+          ? "SENT"
+          : prev.status);
+
+      return {
+        ...prev,
+        status: newStatus,
+        payments: newPayments,
+      };
+    });
+    router.refresh();
+  };
+
+  const handlePaymentUpdated = (updatedPayment) => {
+    setInvoice((prev) => {
+      const newPayments = (prev.payments || []).map((p) =>
+        p.id === updatedPayment.id ? updatedPayment : p
+      );
+      const newTotalPaid = Number(
+        newPayments.reduce((s, p) => s + (Number(p.amount) || 0), 0).toFixed(2)
+      );
+      const newStatus =
+        updatedPayment.invoice?.status ||
+        (newTotalPaid >= Number(prev.total)
+          ? "PAID"
+          : prev.status === "PAID"
+          ? isOverdue
+            ? "OVERDUE"
+            : "SENT"
+          : prev.status);
+
+      return {
+        ...prev,
+        status: newStatus,
+        payments: newPayments,
+      };
+    });
+    router.refresh();
+  };
+
+  const handlePaymentDeleted = (res) => {
+    setInvoice((prev) => {
+      const newPayments = (prev.payments || []).filter(
+        (p) => p.id !== res.deletedId
+      );
+      return {
+        ...prev,
+        status: res.invoice?.status || prev.status,
+        payments: newPayments,
+      };
+    });
+    router.refresh();
+  };
+
   const handlePrint = () => {
     window.print();
   };
-
-  const balanceDue =
-    invoice.status === "PAID" ? 0 : Number(invoice.total || 0);
 
   return (
     <div className="space-y-8 pb-16">
@@ -233,6 +314,18 @@ export default function InvoiceDetailPageClient({
             <Send className="size-3.5" />
             <span>Send Invoice</span>
           </Button>
+
+          {/* Record Payment Button */}
+          {balanceDue > 0 && invoice.status !== "CANCELLED" && (
+            <Button
+              size="sm"
+              onClick={() => setPaymentFormOpen(true)}
+              className="gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-2xs font-medium"
+            >
+              <Plus className="size-3.5" />
+              <span>Record Payment</span>
+            </Button>
+          )}
 
           {/* Quick Lifecycle Action: Mark as Sent (Manual) */}
           {invoice.status === "DRAFT" && (
@@ -427,55 +520,90 @@ export default function InvoiceDetailPageClient({
 
       {/* Financial Metric Cards */}
       <div className="no-print grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Total Invoiced */}
         <Card className="shadow-2xs">
           <CardContent className="p-5 flex items-center justify-between">
             <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Subtotal</p>
+              <p className="text-xs font-medium text-muted-foreground">Total Invoiced</p>
               <p className="text-xl font-bold text-foreground font-mono">
-                {formatCurrency(invoice.subtotal)}
+                {formatCurrency(invoice.total)}
               </p>
             </div>
             <div className="size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-              <FileCode2 className="size-5" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-2xs">
-          <CardContent className="p-5 flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Taxes</p>
-              <p className="text-xl font-bold text-foreground font-mono">
-                {formatCurrency(invoice.tax)}
-              </p>
-            </div>
-            <div className="size-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
               <Receipt className="size-5" />
             </div>
           </CardContent>
         </Card>
 
+        {/* Card 2: Total Paid */}
         <Card className="shadow-2xs">
           <CardContent className="p-5 flex items-center justify-between">
             <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Discounts</p>
-              <p className="text-xl font-bold text-foreground font-mono">
-                {formatCurrency(invoice.discount)}
+              <div className="flex items-center gap-1.5">
+                <p className="text-xs font-medium text-muted-foreground">Amount Paid</p>
+                {(invoice.payments || []).length > 0 && (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                    {(invoice.payments || []).length}
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                {formatCurrency(paidAmount)}
               </p>
             </div>
-            <div className="size-10 rounded-xl bg-sky-500/10 text-sky-600 flex items-center justify-center">
-              <IndianRupee className="size-5" />
+            <div className="size-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+              <ShieldCheck className="size-5" />
             </div>
           </CardContent>
         </Card>
 
+        {/* Card 3: Balance Due */}
         <Card className="shadow-2xs">
           <CardContent className="p-5 flex items-center justify-between">
             <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Payment State</p>
+              <p className="text-xs font-medium text-muted-foreground">Remaining Balance</p>
+              <p
+                className={`text-xl font-bold font-mono ${
+                  balanceDue > 0
+                    ? isOverdue
+                      ? "text-destructive"
+                      : "text-foreground"
+                    : "text-emerald-600 dark:text-emerald-400"
+                }`}
+              >
+                {formatCurrency(balanceDue)}
+              </p>
+            </div>
+            <div
+              className={`size-10 rounded-xl flex items-center justify-center ${
+                balanceDue > 0
+                  ? isOverdue
+                    ? "bg-rose-500/10 text-rose-600"
+                    : "bg-amber-500/10 text-amber-600"
+                  : "bg-emerald-500/10 text-emerald-600"
+              }`}
+            >
+              {balanceDue === 0 ? (
+                <ShieldCheck className="size-5" />
+              ) : isOverdue ? (
+                <AlertCircle className="size-5" />
+              ) : (
+                <Clock className="size-5" />
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Card 4: Payment State */}
+        <Card className="shadow-2xs">
+          <CardContent className="p-5 flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-muted-foreground">Payment Status</p>
               <p className="text-base font-bold text-foreground">
-                {invoice.status === "PAID"
+                {isFullyPaid
                   ? "Settled in Full"
+                  : isPartiallyPaid
+                  ? `Partially Paid`
                   : isOverdue
                   ? "Payment Overdue"
                   : "Payment Pending"}
@@ -483,15 +611,19 @@ export default function InvoiceDetailPageClient({
             </div>
             <div
               className={`size-10 rounded-xl flex items-center justify-center ${
-                invoice.status === "PAID"
+                isFullyPaid
                   ? "bg-emerald-500/10 text-emerald-600"
+                  : isPartiallyPaid
+                  ? "bg-amber-500/10 text-amber-600"
                   : isOverdue
                   ? "bg-rose-500/10 text-rose-600"
                   : "bg-muted text-muted-foreground"
               }`}
             >
-              {invoice.status === "PAID" ? (
+              {isFullyPaid ? (
                 <ShieldCheck className="size-5" />
+              ) : isPartiallyPaid ? (
+                <Clock className="size-5" />
               ) : isOverdue ? (
                 <AlertCircle className="size-5" />
               ) : (
@@ -743,15 +875,24 @@ export default function InvoiceDetailPageClient({
                 </span>
               </div>
 
+              {paidAmount > 0 && (
+                <div className="flex items-center justify-between text-xs text-emerald-600 dark:text-emerald-400">
+                  <span className="font-medium">Amount Paid (-)</span>
+                  <span className="font-bold font-mono">
+                    -{formatCurrency(paidAmount)}
+                  </span>
+                </div>
+              )}
+
               <div className="pt-2 border-t flex items-center justify-between text-xs">
-                <span className="font-medium text-muted-foreground">Balance Due:</span>
+                <span className="font-medium text-muted-foreground">Remaining Balance:</span>
                 <span
                   className={`font-bold font-mono text-sm ${
                     balanceDue > 0
                       ? isOverdue
                         ? "text-destructive"
                         : "text-foreground"
-                    : "text-emerald-600 dark:text-emerald-400"
+                      : "text-emerald-600 dark:text-emerald-400"
                   }`}
                 >
                   {formatCurrency(balanceDue)}
@@ -760,7 +901,26 @@ export default function InvoiceDetailPageClient({
             </CardContent>
           </Card>
         </div>
+
+        {/* Payments & Settlement Section (Non-Printable in main view or custom printable) */}
+        <div className="no-print pt-2">
+          <PaymentHistoryTable
+            payments={invoice.payments || []}
+            invoice={invoice}
+            onPaymentUpdated={handlePaymentUpdated}
+            onPaymentDeleted={handlePaymentDeleted}
+            onAddPaymentClick={() => setPaymentFormOpen(true)}
+          />
+        </div>
       </div>
+
+      {/* Payment Form Dialog */}
+      <PaymentFormDialog
+        open={paymentFormOpen}
+        onOpenChange={setPaymentFormOpen}
+        invoice={invoice}
+        onSuccess={handlePaymentCreated}
+      />
 
       {/* Edit Form Dialog */}
       <InvoiceFormDialog

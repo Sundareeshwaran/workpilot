@@ -61,6 +61,7 @@ export default async function InvoiceDetailPage({ params }) {
       amount: Number(p.amount || 0),
       paymentDate: p.paymentDate ? p.paymentDate.toISOString() : null,
       createdAt: p.createdAt ? p.createdAt.toISOString() : null,
+      updatedAt: p.updatedAt ? p.updatedAt.toISOString() : null,
     })),
     client: rawInvoice.client
       ? {

@@ -346,6 +346,14 @@ export function generateInvoicePdfBuffer(invoice, user = {}) {
       const tax = Number(invoice.tax) || 0;
       const discount = Number(invoice.discount) || 0;
       const total = Number(invoice.total) || 0;
+      const payments = invoice.payments || [];
+      const paidAmount = Number(
+        payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0).toFixed(2)
+      );
+      const remainingBalance =
+        invoice.status === "PAID"
+          ? 0
+          : Math.max(0, Number((total - paidAmount).toFixed(2)));
 
       let curSummaryY = summaryStartY;
 
@@ -394,21 +402,39 @@ export function generateInvoicePdfBuffer(invoice, user = {}) {
         curSummaryY += 15;
       }
 
-      // Total Amount Box
+      // Paid to Date (if any payments recorded)
+      if (paidAmount > 0) {
+        doc
+          .fontSize(8.5)
+          .font("Helvetica")
+          .fillColor("#166534")
+          .text("Amount Paid:", summaryBoxX, curSummaryY)
+          .font("Helvetica-Bold")
+          .text(`-${formatCurrency(paidAmount)}`, summaryBoxX, curSummaryY, {
+            width: summaryBoxWidth - 8,
+            align: "right",
+          });
+        curSummaryY += 15;
+      }
+
+      // Total / Balance Due Box
       curSummaryY += 4;
       const totalBoxHeight = 28;
       doc
         .roundedRect(summaryBoxX - 6, curSummaryY, summaryBoxWidth + 6, totalBoxHeight, 3)
         .fill(primaryDark);
 
+      const labelText = paidAmount > 0 ? "Balance Due:" : "Total Due:";
+      const amountToShow = paidAmount > 0 ? remainingBalance : total;
+
       doc
         .fontSize(9)
         .font("Helvetica-Bold")
         .fillColor("#FFFFFF")
-        .text("Total Due:", summaryBoxX + 4, curSummaryY + 8)
+        .text(labelText, summaryBoxX + 4, curSummaryY + 8)
         .fontSize(10.5)
         .fillColor(brandAccent)
-        .text(formatCurrency(total), summaryBoxX, curSummaryY + 7, {
+        .text(formatCurrency(amountToShow), summaryBoxX, curSummaryY + 7, {
           width: summaryBoxWidth - 8,
           align: "right",
         });

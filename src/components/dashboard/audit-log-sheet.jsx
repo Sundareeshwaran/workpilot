@@ -30,6 +30,9 @@ import {
   ChevronUp,
   ExternalLink,
   Code2,
+  Receipt,
+  CreditCard,
+  IndianRupee,
 } from "lucide-react";
 import TaskStatusBadge from "@/components/tasks/task-status-badge";
 import ProjectStatusBadge from "@/components/projects/project-status-badge";
@@ -108,6 +111,21 @@ const ACTION_CONFIG = {
   },
   INVOICE_DELETED: {
     label: "Invoice Deleted",
+    badgeClass: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800",
+    icon: Trash2,
+  },
+  PAYMENT_CREATED: {
+    label: "Payment Recorded",
+    badgeClass: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800",
+    icon: Receipt,
+  },
+  PAYMENT_UPDATED: {
+    label: "Payment Updated",
+    badgeClass: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800",
+    icon: Edit3,
+  },
+  PAYMENT_DELETED: {
+    label: "Payment Deleted",
     badgeClass: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800",
     icon: Trash2,
   },
@@ -390,8 +408,136 @@ export default function AuditLogSheet({
               </div>
             )}
 
+            {/* PAYMENT CREATED */}
+            {log.action === "PAYMENT_CREATED" && (
+              <div className="rounded-xl border bg-card p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Payment Received
+                  </span>
+                  {details.amount !== undefined && (
+                    <span className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">
+                      +₹{Number(details.amount).toLocaleString("en-IN")}
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-border/50">
+                  <div>
+                    <span className="text-muted-foreground block text-[11px]">Method</span>
+                    <span className="font-medium text-foreground">{details.paymentMethod || "Standard"}</span>
+                  </div>
+                  {details.referenceNumber && (
+                    <div>
+                      <span className="text-muted-foreground block text-[11px]">Reference / TXN</span>
+                      <span className="font-mono font-medium text-foreground truncate block">{details.referenceNumber}</span>
+                    </div>
+                  )}
+                  {details.invoiceId && (
+                    <div className="col-span-2 pt-1">
+                      <span className="text-muted-foreground block text-[11px]">Applied to Invoice</span>
+                      <Link
+                        href={`/invoices/${details.invoiceId}`}
+                        className="text-primary hover:underline font-semibold inline-flex items-center gap-1"
+                      >
+                        <span>#{details.invoiceNumber || details.invoiceId}</span>
+                        <ExternalLink className="size-3" />
+                      </Link>
+                    </div>
+                  )}
+                  {details.remainingBalance !== undefined && (
+                    <div className="col-span-2 flex items-center justify-between pt-2 border-t border-border/40 text-[11px]">
+                      <span className="text-muted-foreground">Remaining Invoice Balance:</span>
+                      <span className="font-mono font-bold text-foreground">
+                        ₹{Number(details.remainingBalance).toLocaleString("en-IN")}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* PAYMENT UPDATED */}
+            {log.action === "PAYMENT_UPDATED" && (
+              <div className="rounded-xl border bg-card p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Payment Adjusted
+                  </span>
+                  {details.newAmount !== undefined && (
+                    <div className="flex items-center gap-2 font-mono">
+                      {details.oldAmount !== undefined && (
+                        <span className="text-xs line-through text-muted-foreground">
+                          ₹{Number(details.oldAmount).toLocaleString("en-IN")}
+                        </span>
+                      )}
+                      <ArrowRight className="size-3 text-muted-foreground" />
+                      <span className="text-sm font-bold text-foreground">
+                        ₹{Number(details.newAmount).toLocaleString("en-IN")}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-border/50">
+                  <div>
+                    <span className="text-muted-foreground block text-[11px]">Method</span>
+                    <span className="font-medium text-foreground">{details.paymentMethod || "Standard"}</span>
+                  </div>
+                  {details.referenceNumber && (
+                    <div>
+                      <span className="text-muted-foreground block text-[11px]">Reference / TXN</span>
+                      <span className="font-mono font-medium text-foreground truncate block">{details.referenceNumber}</span>
+                    </div>
+                  )}
+                  {details.invoiceId && (
+                    <div className="col-span-2 pt-1">
+                      <span className="text-muted-foreground block text-[11px]">Invoice</span>
+                      <Link
+                        href={`/invoices/${details.invoiceId}`}
+                        className="text-primary hover:underline font-semibold inline-flex items-center gap-1"
+                      >
+                        <span>#{details.invoiceNumber || details.invoiceId}</span>
+                        <ExternalLink className="size-3" />
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* PAYMENT DELETED */}
+            {log.action === "PAYMENT_DELETED" && (
+              <div className="rounded-xl border bg-card p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-rose-600 dark:text-rose-400">
+                    Payment Removed
+                  </span>
+                  {details.amount !== undefined && (
+                    <span className="text-xs font-bold line-through text-muted-foreground font-mono">
+                      ₹{Number(details.amount).toLocaleString("en-IN")}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Payment record was deleted and invoice balance capacity was restored.
+                </p>
+                {details.invoiceId && (
+                  <div className="pt-1 text-xs">
+                    <Link
+                      href={`/invoices/${details.invoiceId}`}
+                      className="text-primary hover:underline font-semibold inline-flex items-center gap-1"
+                    >
+                      <span>View Invoice #{details.invoiceNumber || details.invoiceId}</span>
+                      <ExternalLink className="size-3" />
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Generic fallback */}
-            {!["TASK_STATUS_CHANGED", "TASK_CREATED", "TASK_UPDATED", "TASK_DELETED", "PROJECT_STATUS_CHANGED", "PROJECT_CREATED", "INVOICE_STATUS_CHANGED", "INVOICE_SENT", "INVOICE_PAID", "INVOICE_OVERDUE", "INVOICE_CANCELLED", "INVOICE_CREATED", "INVOICE_UPDATED", "INVOICE_DELETED"].includes(log.action) && (
+            {!["TASK_STATUS_CHANGED", "TASK_CREATED", "TASK_UPDATED", "TASK_DELETED", "PROJECT_STATUS_CHANGED", "PROJECT_CREATED", "INVOICE_STATUS_CHANGED", "INVOICE_SENT", "INVOICE_PAID", "INVOICE_OVERDUE", "INVOICE_CANCELLED", "INVOICE_CREATED", "INVOICE_UPDATED", "INVOICE_DELETED", "PAYMENT_CREATED", "PAYMENT_UPDATED", "PAYMENT_DELETED"].includes(log.action) && (
               <div className="rounded-xl border bg-card p-4 space-y-2">
                 <p className="text-sm font-medium text-foreground">
                   {config.label}

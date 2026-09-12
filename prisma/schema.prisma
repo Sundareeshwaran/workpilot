@@ -48,6 +48,7 @@ enum PaymentMethod {
   CARD
   CASH
   PAYPAL
+  OTHER
 }
 
 // User Model
@@ -237,17 +238,22 @@ model Payment {
 
   paymentMethod PaymentMethod
 
-  transactionId String?
+  referenceNumber String?
 
   paymentDate DateTime
 
   notes String?
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([invoiceId])
+  @@index([paymentDate])
 }
 
 // Activity Model

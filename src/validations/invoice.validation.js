@@ -83,7 +83,7 @@ export const invoiceCreateSchema = z
       .string()
       .optional()
       .nullable()
-      .or(z.literal("")),
+      .transform((val) => (val === "NONE" || val === "" || !val ? null : val.trim())),
 
     issueDate: z
       .string({
@@ -162,7 +162,7 @@ export const invoiceUpdateSchema = z
       .string()
       .optional()
       .nullable()
-      .or(z.literal("")),
+      .transform((val) => (val === undefined ? undefined : val === "NONE" || val === "" || !val ? null : val.trim())),
 
     issueDate: z
       .string()

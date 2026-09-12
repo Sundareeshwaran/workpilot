@@ -13,6 +13,9 @@ import {
   AlertCircle,
   Calendar,
   Eye,
+  Receipt,
+  CheckCircle2,
+  Clock,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
@@ -137,6 +140,24 @@ const ACTION_CONFIG = {
       "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800",
     icon: Trash2,
   },
+  PAYMENT_CREATED: {
+    label: "Payment Recorded",
+    badgeClass:
+      "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800",
+    icon: Receipt,
+  },
+  PAYMENT_UPDATED: {
+    label: "Payment Updated",
+    badgeClass:
+      "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800",
+    icon: Edit3,
+  },
+  PAYMENT_DELETED: {
+    label: "Payment Deleted",
+    badgeClass:
+      "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800",
+    icon: Trash2,
+  },
 };
 
 function formatTimestamp(dateString) {
@@ -215,6 +236,18 @@ function getLogDescription(log) {
       return details.invoiceNumber
         ? `Deleted invoice #${details.invoiceNumber}`
         : "Deleted client invoice";
+    case "PAYMENT_CREATED":
+      return details.amount
+        ? `Recorded ₹${Number(details.amount).toLocaleString("en-IN")} payment via ${details.paymentMethod || "standard"}${details.invoiceNumber ? ` for #${details.invoiceNumber}` : ""}`
+        : "Recorded payment";
+    case "PAYMENT_UPDATED":
+      return details.newAmount !== undefined
+        ? `Updated payment to ₹${Number(details.newAmount).toLocaleString("en-IN")}${details.invoiceNumber ? ` on #${details.invoiceNumber}` : ""}`
+        : "Updated payment details";
+    case "PAYMENT_DELETED":
+      return details.amount
+        ? `Deleted ₹${Number(details.amount).toLocaleString("en-IN")} payment${details.invoiceNumber ? ` from #${details.invoiceNumber}` : ""}`
+        : "Deleted payment record";
     default:
       return log.action.replace(/_/g, " ").toLowerCase();
   }

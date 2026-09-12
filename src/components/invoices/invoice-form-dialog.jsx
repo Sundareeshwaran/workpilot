@@ -137,12 +137,77 @@ export default function InvoiceFormDialog({
 
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
+  const [availableClients, setAvailableClients] = useState(clients);
+  const [availableProjects, setAvailableProjects] = useState(projects);
+
+  // Synchronize when props update
+  useEffect(() => {
+    if (clients && clients.length > 0) setAvailableClients(clients);
+  }, [clients]);
+
+  useEffect(() => {
+    if (projects && projects.length > 0) setAvailableProjects(projects);
+  }, [projects]);
+
+  // Fetch latest clients and projects whenever modal is opened
+  useEffect(() => {
+    if (open) {
+      async function refreshDropdownData() {
+        try {
+          const [cRes, pRes] = await Promise.all([
+            fetch("/api/clients"),
+            fetch("/api/projects?limit=100"),
+          ]);
+          if (cRes.ok) {
+            const cData = await cRes.json();
+            if (cData.clients) setAvailableClients(cData.clients);
+          }
+          if (pRes.ok) {
+            const pData = await pRes.json();
+            if (pData.projects) setAvailableProjects(pData.projects);
+          }
+        } catch (err) {
+          console.error("DROPDOWN REFRESH ERROR:", err);
+        }
+      }
+      refreshDropdownData();
+    }
+  }, [open]);
 
   // Filter projects by selected client if client is chosen
   const clientProjects = useMemo(() => {
-    if (!clientId) return projects;
-    return projects.filter((p) => p.clientId === clientId);
-  }, [projects, clientId]);
+    if (!clientId) return availableProjects;
+    return availableProjects.filter(
+      (p) => p.clientId === clientId || p.client?.id === clientId
+    );
+  }, [availableProjects, clientId]);
+
+  // Handle client change: reset project if incompatible
+  const handleClientChange = (newClientId) => {
+    setClientId(newClientId);
+    if (projectId !== "NONE") {
+      const match = availableProjects.find(
+        (p) =>
+          p.id === projectId &&
+          (p.clientId === newClientId || p.client?.id === newClientId)
+      );
+      if (!match) {
+        setProjectId("NONE");
+      }
+    }
+  };
+
+  // Handle project change: autofill client if not selected
+  const handleProjectChange = (newProjectId) => {
+    setProjectId(newProjectId);
+    if (newProjectId !== "NONE") {
+      const selectedProj = availableProjects.find((p) => p.id === newProjectId);
+      const projClientId = selectedProj?.clientId || selectedProj?.client?.id;
+      if (projClientId && (!clientId || clientId !== projClientId)) {
+        setClientId(projClientId);
+      }
+    }
+  };
 
   // Populate form on edit or reset on open
   useEffect(() => {
@@ -453,7 +518,7 @@ export default function InvoiceFormDialog({
                   <span>
                     Client <span className="text-destructive">*</span>
                   </span>
-                  {clients.length === 0 && (
+                  {availableClients.length === 0 && (
                     <span className="text-[10px] text-destructive font-normal">
                       No clients found
                     </span>
@@ -461,20 +526,20 @@ export default function InvoiceFormDialog({
                 </Label>
                 <Select
                   value={clientId}
-                  onValueChange={setClientId}
-                  disabled={isEdit || clients.length === 0}
+                  onValueChange={handleClientChange}
+                  disabled={isEdit || availableClients.length === 0}
                 >
                   <SelectTrigger className="h-9 text-xs bg-background">
                     <SelectValue
                       placeholder={
-                        clients.length === 0
+                        availableClients.length === 0
                           ? "No clients available"
                           : "Select client..."
                       }
                     />
                   </SelectTrigger>
                   <SelectContent>
-                    {clients.map((c) => (
+                    {availableClients.map((c) => (
                       <SelectItem key={c.id} value={c.id} className="text-xs">
                         <span className="font-medium">{c.name}</span>
                         {c.companyName && (
@@ -496,7 +561,7 @@ export default function InvoiceFormDialog({
                     Optional
                   </span>
                 </Label>
-                <Select value={projectId} onValueChange={setProjectId}>
+                <Select value={projectId} onValueChange={handleProjectChange}>
                   <SelectTrigger className="h-9 text-xs bg-background">
                     <SelectValue placeholder="Select project..." />
                   </SelectTrigger>
@@ -506,7 +571,12 @@ export default function InvoiceFormDialog({
                     </SelectItem>
                     {clientProjects.map((p) => (
                       <SelectItem key={p.id} value={p.id} className="text-xs">
-                        {p.name}
+                        <span>{p.name}</span>
+                        {p.status && (
+                          <span className="text-muted-foreground text-[10px] ml-1.5 opacity-70">
+                            ({p.status})
+                          </span>
+                        )}
                       </SelectItem>
                     ))}
                   </SelectContent>

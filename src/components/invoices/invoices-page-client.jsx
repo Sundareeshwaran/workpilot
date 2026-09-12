@@ -12,7 +12,10 @@ import InvoiceDetailDialog from "./invoice-detail-dialog";
 import DeleteInvoiceDialog from "./delete-invoice-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 
-export default function InvoicesPageClient() {
+export default function InvoicesPageClient({
+  initialClients = [],
+  initialProjects = [],
+}) {
   const [invoices, setInvoices] = useState([]);
   const [stats, setStats] = useState({});
   const [pagination, setPagination] = useState({ page: 1, limit: 10, totalInvoices: 0, totalPages: 1 });
@@ -20,8 +23,8 @@ export default function InvoicesPageClient() {
   const [refreshing, setRefreshing] = useState(false);
 
   // Available Clients & Projects for selectors
-  const [clients, setClients] = useState([]);
-  const [projects, setProjects] = useState([]);
+  const [clients, setClients] = useState(initialClients);
+  const [projects, setProjects] = useState(initialProjects);
 
   // Filter & Search states
   const [searchQuery, setSearchQuery] = useState("");
