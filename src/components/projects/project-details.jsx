@@ -29,6 +29,8 @@ import {
 import TaskStatusBadge from "@/components/tasks/task-status-badge";
 import TaskPriorityBadge from "@/components/tasks/task-priority-badge";
 import AddTaskDialog from "@/components/tasks/add-task-dialog";
+import EditTaskDialog from "@/components/tasks/edit-task-dialog";
+import DeleteTaskDialog from "@/components/tasks/delete-task-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -112,6 +114,11 @@ export default function ProjectDetails({ project: initialProject }) {
   const [deleting, setDeleting] = useState(false);
   const [activityRefreshKey, setActivityRefreshKey] = useState(0);
   const [addTaskOpen, setAddTaskOpen] = useState(false);
+  const [taskToEdit, setTaskToEdit] = useState(null);
+  const [editTaskOpen, setEditTaskOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState(null);
+  const [deleteTaskOpen, setDeleteTaskOpen] = useState(false);
+  const [updatingTaskId, setUpdatingTaskId] = useState(null);
 
   function handleTaskCreated(newTask) {
     setProject((prev) => ({
@@ -141,6 +148,7 @@ export default function ProjectDetails({ project: initialProject }) {
 
   async function handleListTaskStatusChange(taskId, newStatus) {
     try {
+      setUpdatingTaskId(taskId);
       const res = await fetch(`/api/tasks/${taskId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -157,6 +165,32 @@ export default function ProjectDetails({ project: initialProject }) {
     } catch (err) {
       console.error("TASK STATUS UPDATE ERROR:", err);
       toast.error(err.message || "Failed to update task status");
+    } finally {
+      setUpdatingTaskId(null);
+    }
+  }
+
+  async function handleListTaskPriorityChange(taskId, newPriority) {
+    try {
+      setUpdatingTaskId(taskId);
+      const res = await fetch(`/api/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priority: newPriority }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Failed to update task priority");
+      }
+      handleTaskUpdated(data.task);
+      toast.success(
+        `Task priority updated to ${newPriority.toLowerCase()}`,
+      );
+    } catch (err) {
+      console.error("TASK PRIORITY UPDATE ERROR:", err);
+      toast.error(err.message || "Failed to update task priority");
+    } finally {
+      setUpdatingTaskId(null);
     }
   }
 
@@ -641,15 +675,23 @@ export default function ProjectDetails({ project: initialProject }) {
                 <div className="divide-y divide-border/60">
                   {project.tasks.map((task) => {
                     const isDone = task.status === "DONE";
+                    const taskDaysRemaining = calculateDaysRemaining(task.dueDate);
+                    const isTaskOverdue =
+                      taskDaysRemaining !== null &&
+                      taskDaysRemaining < 0 &&
+                      !isDone;
+                    const formattedDueDate = formatDate(task.dueDate);
+
                     return (
                       <div
                         key={task.id}
                         className={cn(
-                          "py-3 first:pt-0 last:pb-0 flex items-center justify-between gap-4 transition-colors",
+                          "py-3.5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors group",
                           isDone && "opacity-75",
                         )}
                       >
-                        <div className="flex items-start gap-3 min-w-0">
+                        {/* Left: Check/Status icon, Title, Description, and Due Date */}
+                        <div className="flex items-start gap-3 min-w-0 flex-1">
                           <div className="mt-0.5 shrink-0">
                             {isDone ? (
                               <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400" />
@@ -659,17 +701,48 @@ export default function ProjectDetails({ project: initialProject }) {
                               <Circle className="size-4 text-muted-foreground/50" />
                             )}
                           </div>
-                          <div className="space-y-0.5 min-w-0">
-                            <p
-                              className={cn(
-                                "text-sm font-medium truncate",
-                                isDone
-                                  ? "line-through text-muted-foreground"
-                                  : "text-foreground",
+                          <div className="space-y-1 min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p
+                                onClick={() => {
+                                  setTaskToEdit(task);
+                                  setEditTaskOpen(true);
+                                }}
+                                className={cn(
+                                  "text-sm font-medium cursor-pointer hover:text-primary transition-colors",
+                                  isDone
+                                    ? "line-through text-muted-foreground hover:text-muted-foreground"
+                                    : "text-foreground",
+                                )}
+                              >
+                                {task.title}
+                              </p>
+                              {formattedDueDate !== "Not Set" && (
+                                <span
+                                  className={cn(
+                                    "inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md font-medium transition-colors",
+                                    isTaskOverdue
+                                      ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold border border-rose-500/20"
+                                      : "text-muted-foreground bg-muted/50 border border-border/50",
+                                  )}
+                                  title={
+                                    isTaskOverdue
+                                      ? `Overdue by ${Math.abs(taskDaysRemaining)} day${Math.abs(taskDaysRemaining) === 1 ? "" : "s"}`
+                                      : `Due on ${formattedDueDate}`
+                                  }
+                                >
+                                  {isTaskOverdue ? (
+                                    <AlertTriangle className="size-3 shrink-0 text-rose-600 dark:text-rose-400 animate-pulse" />
+                                  ) : (
+                                    <Calendar className="size-3 shrink-0" />
+                                  )}
+                                  <span>
+                                    {formattedDueDate}
+                                    {isTaskOverdue && ` (${Math.abs(taskDaysRemaining)}d overdue)`}
+                                  </span>
+                                </span>
                               )}
-                            >
-                              {task.title}
-                            </p>
+                            </div>
                             {task.description && (
                               <p
                                 className={cn(
@@ -684,17 +757,39 @@ export default function ProjectDetails({ project: initialProject }) {
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          {task.priority && (
-                            <TaskPriorityBadge priority={task.priority} />
-                          )}
+
+                        {/* Right: Priority Selector, Status Selector, and Edit/Delete action buttons */}
+                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                          {/* Priority Selector */}
+                          <Select
+                            value={task.priority || "MEDIUM"}
+                            onValueChange={(val) =>
+                              handleListTaskPriorityChange(task.id, val)
+                            }
+                            disabled={updatingTaskId === task.id}
+                          >
+                            <SelectTrigger className="h-7 text-xs border rounded-md px-2 bg-background/50 hover:bg-background cursor-pointer">
+                              <SelectValue>
+                                <TaskPriorityBadge priority={task.priority || "MEDIUM"} />
+                              </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent align="end">
+                              <SelectItem value="LOW">Low</SelectItem>
+                              <SelectItem value="MEDIUM">Medium</SelectItem>
+                              <SelectItem value="HIGH">High</SelectItem>
+                              <SelectItem value="URGENT">Urgent</SelectItem>
+                            </SelectContent>
+                          </Select>
+
+                          {/* Status Selector */}
                           <Select
                             value={task.status}
                             onValueChange={(val) =>
                               handleListTaskStatusChange(task.id, val)
                             }
+                            disabled={updatingTaskId === task.id}
                           >
-                            <SelectTrigger className="h-6.5 text-[11px] border-none bg-transparent hover:bg-muted/50 p-0 shadow-none cursor-pointer">
+                            <SelectTrigger className="h-7 text-xs border rounded-md px-2 bg-background/50 hover:bg-background cursor-pointer">
                               <SelectValue>
                                 <TaskStatusBadge status={task.status} />
                               </SelectValue>
@@ -705,6 +800,36 @@ export default function ProjectDetails({ project: initialProject }) {
                               <SelectItem value="DONE">Done</SelectItem>
                             </SelectContent>
                           </Select>
+
+                          {/* Edit Task Action Button */}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent cursor-pointer"
+                            onClick={() => {
+                              setTaskToEdit(task);
+                              setEditTaskOpen(true);
+                            }}
+                            title="Edit Task"
+                          >
+                            <Edit2 className="size-3.5" />
+                            <span className="sr-only">Edit Task</span>
+                          </Button>
+
+                          {/* Delete Task Action Button */}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-7 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                            onClick={() => {
+                              setTaskToDelete(task);
+                              setDeleteTaskOpen(true);
+                            }}
+                            title="Delete Task"
+                          >
+                            <Trash2 className="size-3.5" />
+                            <span className="sr-only">Delete Task</span>
+                          </Button>
                         </div>
                       </div>
                     );
@@ -868,6 +993,22 @@ export default function ProjectDetails({ project: initialProject }) {
           onTaskCreated={handleTaskCreated}
         />
       )}
+
+      {/* Edit Task Dialog */}
+      <EditTaskDialog
+        open={editTaskOpen}
+        onOpenChange={setEditTaskOpen}
+        task={taskToEdit}
+        onTaskUpdated={handleTaskUpdated}
+      />
+
+      {/* Delete Task Confirmation Dialog */}
+      <DeleteTaskDialog
+        open={deleteTaskOpen}
+        onOpenChange={setDeleteTaskOpen}
+        task={taskToDelete}
+        onTaskDeleted={handleTaskDeleted}
+      />
     </div>
   );
 }

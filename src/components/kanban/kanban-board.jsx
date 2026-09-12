@@ -13,7 +13,9 @@ export default function KanbanBoard({
   tasks = [],
   onAddTask,
   onStatusChange,
+  onTaskUpdated,
   onDelete,
+  onTaskDeleted,
   onDropTask,
   updatingTaskIds = new Set(),
 }) {
@@ -47,7 +49,9 @@ export default function KanbanBoard({
               tasks={tasksByStatus[col.status] || []}
               onAddTask={onAddTask}
               onStatusChange={onStatusChange}
+              onTaskUpdated={onTaskUpdated}
               onDelete={onDelete}
+              onTaskDeleted={onTaskDeleted}
               onDropTask={onDropTask}
               updatingTaskIds={updatingTaskIds}
             />

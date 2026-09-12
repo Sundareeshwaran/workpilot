@@ -45,7 +45,9 @@ export default function KanbanColumn({
   tasks = [],
   onAddTask,
   onStatusChange,
+  onTaskUpdated,
   onDelete,
+  onTaskDeleted,
   onDropTask,
   updatingTaskIds = new Set(),
 }) {
@@ -158,7 +160,9 @@ export default function KanbanColumn({
               key={task.id}
               task={task}
               onStatusChange={onStatusChange}
+              onTaskUpdated={onTaskUpdated}
               onDelete={onDelete}
+              onTaskDeleted={onTaskDeleted}
               isUpdating={updatingTaskIds.has(task.id)}
             />
           ))

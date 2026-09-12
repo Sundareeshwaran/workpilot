@@ -153,6 +153,7 @@ export async function createTask({ userId, projectId, data }) {
         details: {
           taskId: task.id,
           title: task.title,
+          taskTitle: task.title,
         },
       },
     });
@@ -246,7 +247,9 @@ export async function updateTask({ id, userId, data }) {
           },
         },
       });
-    } else if (hasOtherChanges) {
+    }
+
+    if (hasOtherChanges) {
       await tx.activity.create({
         data: {
           userId,

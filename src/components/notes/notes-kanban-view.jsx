@@ -47,6 +47,12 @@ export default function NotesKanbanView({
     setTasks((prev) => [newTask, ...prev]);
   };
 
+  const handleTaskUpdated = (updatedTask) => {
+    setTasks((prev) =>
+      prev.map((t) => (t.id === updatedTask.id ? { ...t, ...updatedTask } : t)),
+    );
+  };
+
   const handleStatusChange = useCallback(
     async (taskId, newStatus) => {
       // Guard: prevent concurrent updates for the same task
@@ -342,7 +348,9 @@ export default function NotesKanbanView({
         tasks={filteredTasks}
         onAddTask={handleOpenAddTask}
         onStatusChange={handleStatusChange}
+        onTaskUpdated={handleTaskUpdated}
         onDelete={handleDeleteTask}
+        onTaskDeleted={handleDeleteTask}
         onDropTask={handleDropTask}
         updatingTaskIds={updatingTaskIds}
       />

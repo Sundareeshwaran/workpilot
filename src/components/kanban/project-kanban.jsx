@@ -205,7 +205,9 @@ export default function ProjectKanban({
         tasks={filteredTasks}
         onAddTask={handleOpenAddTask}
         onStatusChange={handleStatusChange}
+        onTaskUpdated={onTaskUpdated}
         onDelete={handleDeleteTask}
+        onTaskDeleted={onTaskDeleted}
         onDropTask={handleDropTask}
         updatingTaskIds={updatingTaskIds}
       />
