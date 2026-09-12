@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   History,
   FolderPlus,
@@ -10,13 +10,26 @@ import {
   Activity as ActivityIcon,
   Sparkles,
   ArrowRight,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import ProjectStatusBadge from "@/components/projects/project-status-badge";
+import TaskStatusBadge from "@/components/tasks/task-status-badge";
+
+const ITEMS_PER_PAGE = 5;
 
 function getActionDetails(action, details) {
   switch (action) {
@@ -58,7 +71,7 @@ function getActionDetails(action, details) {
       };
     case "TASK_STATUS_CHANGED":
       return {
-        label: "Task Status Changed",
+        label: "Task Status",
         description: details?.from && details?.to
           ? `${details.taskTitle ? `"${details.taskTitle}": ` : ""}${details.from.replace("_", " ")} → ${details.to.replace("_", " ")}`
           : "Task status was updated.",
@@ -116,6 +129,7 @@ export default function ProjectActivity({ projectId, refreshTrigger }) {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const fetchActivities = useCallback(async () => {
     if (!projectId) return;
@@ -143,6 +157,24 @@ export default function ProjectActivity({ projectId, refreshTrigger }) {
     fetchActivities();
   }, [fetchActivities, refreshTrigger]);
 
+  // Calculate pagination values
+  const totalPages = Math.max(1, Math.ceil(activities.length / ITEMS_PER_PAGE));
+
+  // Reset page to 1 if currentPage exceeds totalPages
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
+
+  const paginatedActivities = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return activities.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [activities, currentPage]);
+
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE + 1;
+  const endIndex = Math.min(currentPage * ITEMS_PER_PAGE, activities.length);
+
   return (
     <Card className="shadow-xs overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between pb-3 space-y-0 border-b bg-muted/20">
@@ -159,7 +191,7 @@ export default function ProjectActivity({ projectId, refreshTrigger }) {
             )}
           </div>
           <CardDescription className="text-xs">
-            Audit trail of project updates, status transitions, and history.
+            Audit trail of project updates, status transitions, and task history.
           </CardDescription>
         </div>
 
@@ -176,24 +208,26 @@ export default function ProjectActivity({ projectId, refreshTrigger }) {
         </Button>
       </CardHeader>
 
-      <CardContent className="p-6">
+      <CardContent className="p-0">
         {loading ? (
-          <div className="space-y-6">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="flex gap-4">
-                <Skeleton className="size-9 rounded-full shrink-0" />
-                <div className="space-y-2 flex-1 pt-0.5">
-                  <div className="flex items-center justify-between">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-3 w-24" />
+          <div className="p-4">
+            <div className="space-y-3">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex items-center justify-between py-2 border-b last:border-0">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="size-7 rounded-full" />
+                    <div className="space-y-1.5">
+                      <Skeleton className="h-4 w-28" />
+                      <Skeleton className="h-3 w-48" />
+                    </div>
                   </div>
-                  <Skeleton className="h-3 w-56" />
+                  <Skeleton className="h-3 w-28" />
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         ) : error ? (
-          <div className="flex flex-col items-center justify-center p-6 text-center">
+          <div className="flex flex-col items-center justify-center p-8 text-center">
             <p className="text-sm text-destructive font-medium mb-2">{error}</p>
             <Button
               variant="outline"
@@ -206,7 +240,7 @@ export default function ProjectActivity({ projectId, refreshTrigger }) {
             </Button>
           </div>
         ) : activities.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-10 text-center rounded-xl border border-dashed border-border/80 bg-muted/10">
+          <div className="flex flex-col items-center justify-center py-10 text-center rounded-none bg-muted/10">
             <div className="size-11 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-3 ring-6 ring-primary/5">
               <Sparkles className="size-5" />
             </div>
@@ -216,74 +250,148 @@ export default function ProjectActivity({ projectId, refreshTrigger }) {
             </p>
           </div>
         ) : (
-          <div className="relative pl-6 space-y-8 before:absolute before:left-[17px] before:top-2 before:bottom-2 before:w-[2px] before:bg-border/60">
-            {activities.map((item, index) => {
-              const info = getActionDetails(item.action, item.details);
-              const Icon = info.icon;
-              const formattedDate = formatActivityDate(item.createdAt);
-              const isStatusChange = item.action === "PROJECT_STATUS_CHANGED" && item.details?.from && item.details?.to;
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader className="bg-muted/40">
+                <TableRow>
+                  <TableHead className="w-[180px] text-xs font-semibold">Event</TableHead>
+                  <TableHead className="text-xs font-semibold">Details</TableHead>
+                  <TableHead className="w-[190px] text-right text-xs font-semibold">Date & Time</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedActivities.map((item, index) => {
+                  const info = getActionDetails(item.action, item.details);
+                  const Icon = info.icon;
+                  const formattedDate = formatActivityDate(item.createdAt);
+                  const isProjectStatusChange =
+                    item.action === "PROJECT_STATUS_CHANGED" &&
+                    item.details?.from &&
+                    item.details?.to;
+                  const isTaskStatusChange =
+                    item.action === "TASK_STATUS_CHANGED" &&
+                    item.details?.from &&
+                    item.details?.to;
 
-              return (
-                <div key={item.id || index} className="relative flex items-start gap-4 group">
-                  {/* Timeline Dot Icon */}
-                  <div
-                    className={cn(
-                      "absolute -left-[30px] top-0 size-7 rounded-full flex items-center justify-center ring-4 ring-background shadow-xs z-10 transition-transform group-hover:scale-110",
-                      info.iconBg
-                    )}
-                  >
-                    <Icon className="size-3.5" />
-                  </div>
-
-                  {/* Content Container */}
-                  <div className="flex-1 min-w-0 bg-card border rounded-xl p-3.5 shadow-2xs hover:border-primary/30 transition-colors">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-1.5">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Badge
-                          variant="outline"
-                          className={cn("text-xs font-semibold px-2 py-0.5", info.badgeClass)}
-                        >
-                          {info.label}
-                        </Badge>
-                        <span className="text-xs font-mono text-muted-foreground/80 hidden sm:inline">
-                          #{item.action}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
-                        <Clock className="size-3" />
-                        <span>{formattedDate}</span>
-                      </div>
-                    </div>
-
-                    {isStatusChange ? (
-                      <div className="mt-2 flex items-center gap-2 flex-wrap">
-                        <span className="text-xs text-muted-foreground">Transitioned:</span>
-                        <ProjectStatusBadge status={item.details.from} />
-                        <ArrowRight className="size-3 text-muted-foreground" />
-                        <ProjectStatusBadge status={item.details.to} />
-                      </div>
-                    ) : (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {info.description}
-                      </p>
-                    )}
-
-                    {item.details &&
-                      typeof item.details === "object" &&
-                      !isStatusChange &&
-                      Object.keys(item.details).length > 0 && (
-                        <div className="mt-2 text-[11px] font-mono bg-muted/50 p-2 rounded-md border text-muted-foreground overflow-x-auto">
-                          <pre>{JSON.stringify(item.details, null, 2)}</pre>
+                  return (
+                    <TableRow key={item.id || index} className="hover:bg-muted/30 transition-colors">
+                      {/* Event Type & Badge */}
+                      <TableCell className="align-middle">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={cn(
+                              "size-7 rounded-full flex items-center justify-center shrink-0 ring-2 ring-background shadow-2xs",
+                              info.iconBg
+                            )}
+                          >
+                            <Icon className="size-3.5" />
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className={cn("text-xs font-medium px-2 py-0.5", info.badgeClass)}
+                          >
+                            {info.label}
+                          </Badge>
                         </div>
-                      )}
-                  </div>
-                </div>
-              );
-            })}
+                      </TableCell>
+
+                      {/* Details */}
+                      <TableCell className="align-middle">
+                        {isProjectStatusChange ? (
+                          <div className="flex items-center gap-2 flex-wrap text-xs">
+                            <span className="text-muted-foreground">Status transitioned:</span>
+                            <ProjectStatusBadge status={item.details.from} />
+                            <ArrowRight className="size-3 text-muted-foreground shrink-0" />
+                            <ProjectStatusBadge status={item.details.to} />
+                          </div>
+                        ) : isTaskStatusChange ? (
+                          <div className="flex items-center gap-2 flex-wrap text-xs">
+                            {item.details.taskTitle && (
+                              <span className="font-medium text-foreground">
+                                &ldquo;{item.details.taskTitle}&rdquo;:
+                              </span>
+                            )}
+                            <TaskStatusBadge status={item.details.from} />
+                            <ArrowRight className="size-3 text-muted-foreground shrink-0" />
+                            <TaskStatusBadge status={item.details.to} />
+                          </div>
+                        ) : (
+                          <div className="space-y-1">
+                            <p className="text-xs text-foreground font-normal">
+                              {info.description}
+                            </p>
+                            {item.details &&
+                              typeof item.details === "object" &&
+                              !isProjectStatusChange &&
+                              !isTaskStatusChange &&
+                              Object.keys(item.details).length > 0 &&
+                              !item.details.taskTitle &&
+                              !item.details.title && (
+                                <div className="text-[11px] font-mono text-muted-foreground/90 bg-muted/40 px-2 py-1 rounded border inline-block max-w-full truncate">
+                                  {JSON.stringify(item.details)}
+                                </div>
+                              )}
+                          </div>
+                        )}
+                      </TableCell>
+
+                      {/* Timestamp */}
+                      <TableCell className="text-right align-middle">
+                        <div className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Clock className="size-3 shrink-0" />
+                          <span className="whitespace-nowrap">{formattedDate}</span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           </div>
         )}
       </CardContent>
+
+      {/* Pagination Footer */}
+      {!loading && !error && activities.length > 0 && (
+        <CardFooter className="flex items-center justify-between px-4 py-3 border-t bg-muted/10 text-xs text-muted-foreground">
+          <div>
+            Showing{" "}
+            <span className="font-medium text-foreground">
+              {startIndex}–{endIndex}
+            </span>{" "}
+            of <span className="font-medium text-foreground">{activities.length}</span>{" "}
+            {activities.length === 1 ? "event" : "events"}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="hidden sm:inline text-xs text-muted-foreground">
+              Page {currentPage} of {totalPages}
+            </span>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                disabled={currentPage <= 1}
+                className="h-7 px-2.5 text-xs gap-1 cursor-pointer"
+              >
+                <ChevronLeft className="size-3.5" />
+                <span>Previous</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={currentPage >= totalPages}
+                className="h-7 px-2.5 text-xs gap-1 cursor-pointer"
+              >
+                <span>Next</span>
+                <ChevronRight className="size-3.5" />
+              </Button>
+            </div>
+          </div>
+        </CardFooter>
+      )}
     </Card>
   );
 }

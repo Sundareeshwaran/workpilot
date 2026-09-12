@@ -1,19 +1,13 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { toast } from "sonner";
-import { Plus, Search, Filter } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Plus, SearchX, RotateCcw, ListTodo } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import KanbanBoard from "./kanban-board";
 import AddTaskDialog from "@/components/tasks/add-task-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import TaskFilters from "@/components/tasks/task-filters";
+import { filterTasks } from "@/lib/task-filter-utils";
 
 export default function ProjectKanban({
   projectId,
@@ -26,12 +20,21 @@ export default function ProjectKanban({
   const [selectedStatus, setSelectedStatus] = useState("TODO");
   const [searchQuery, setSearchQuery] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [dueDateFilter, setDueDateFilter] = useState("ALL");
   const [updatingTaskIds, setUpdatingTaskIds] = useState(new Set());
 
   const handleOpenAddTask = (status = "TODO") => {
     setSelectedStatus(status);
     setAddTaskOpen(true);
   };
+
+  const handleClearFilters = useCallback(() => {
+    setSearchQuery("");
+    setPriorityFilter("ALL");
+    setStatusFilter("ALL");
+    setDueDateFilter("ALL");
+  }, []);
 
   // Shared status update handler used by both dropdown and drag-drop
   const handleStatusChange = useCallback(
@@ -145,72 +148,108 @@ export default function ProjectKanban({
     }
   };
 
-  // Filter tasks by search query and priority
-  const filteredTasks = tasks.filter((task) => {
-    const matchesSearch =
-      !searchQuery.trim() ||
-      task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (task.description &&
-        task.description.toLowerCase().includes(searchQuery.toLowerCase()));
-
-    const matchesPriority =
-      priorityFilter === "ALL" || task.priority === priorityFilter;
-
-    return matchesSearch && matchesPriority;
-  });
+  // Filter tasks using shared pure filter function
+  const filteredTasks = useMemo(() => {
+    return filterTasks(tasks, {
+      searchQuery,
+      statusFilter,
+      priorityFilter,
+      dueDateFilter,
+    });
+  }, [tasks, searchQuery, statusFilter, priorityFilter, dueDateFilter]);
 
   return (
     <div className="space-y-4">
-      {/* Board Controls: Search, Priority filter, Add Task */}
+      {/* Board Controls: Shared TaskFilters Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5 flex-1 max-w-md">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-            <Input
-              type="text"
-              placeholder="Filter tasks..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8.5 h-9 text-xs"
-            />
-          </div>
-
-          <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-            <SelectTrigger className="w-[125px] h-9 text-xs">
-              <Filter className="size-3.5 mr-1 text-muted-foreground" />
-              <SelectValue placeholder="Priority" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All Priorities</SelectItem>
-              <SelectItem value="URGENT">Urgent</SelectItem>
-              <SelectItem value="HIGH">High</SelectItem>
-              <SelectItem value="MEDIUM">Medium</SelectItem>
-              <SelectItem value="LOW">Low</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="flex-1">
+          <TaskFilters
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            statusFilter={statusFilter}
+            onStatusChange={setStatusFilter}
+            priorityFilter={priorityFilter}
+            onPriorityChange={setPriorityFilter}
+            dueDateFilter={dueDateFilter}
+            onDueDateChange={setDueDateFilter}
+            totalCount={tasks.length}
+            filteredCount={filteredTasks.length}
+            onClearFilters={handleClearFilters}
+          />
         </div>
 
         <Button
           size="sm"
           onClick={() => handleOpenAddTask("TODO")}
-          className="gap-1.5 h-9 text-xs font-medium cursor-pointer shrink-0"
+          className="gap-1.5 h-9 text-xs font-medium cursor-pointer shrink-0 self-start sm:self-auto"
         >
           <Plus className="size-3.5" />
           <span>Add Task</span>
         </Button>
       </div>
 
-      {/* Kanban Board Component */}
-      <KanbanBoard
-        tasks={filteredTasks}
-        onAddTask={handleOpenAddTask}
-        onStatusChange={handleStatusChange}
-        onTaskUpdated={onTaskUpdated}
-        onDelete={handleDeleteTask}
-        onTaskDeleted={onTaskDeleted}
-        onDropTask={handleDropTask}
-        updatingTaskIds={updatingTaskIds}
-      />
+      {/* Kanban Board Component or Empty States */}
+      {tasks.length > 0 ? (
+        filteredTasks.length > 0 ? (
+          <KanbanBoard
+            tasks={filteredTasks}
+            onAddTask={handleOpenAddTask}
+            onStatusChange={handleStatusChange}
+            onTaskUpdated={onTaskUpdated}
+            onDelete={handleDeleteTask}
+            onTaskDeleted={onTaskDeleted}
+            onDropTask={handleDropTask}
+            updatingTaskIds={updatingTaskIds}
+          />
+        ) : (
+          /* Filter/Search Results Empty State */
+          <div className="py-12 text-center rounded-xl border border-dashed border-border/80 bg-card/40 p-6 space-y-3">
+            <div className="size-11 rounded-2xl bg-muted text-muted-foreground flex items-center justify-center mx-auto">
+              <SearchX className="size-5" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">
+                No matching tasks found
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5 max-w-sm mx-auto">
+                No tasks match your current search query or active filter criteria. Try clearing your filters or refining your query.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleClearFilters}
+              className="text-xs gap-1.5 cursor-pointer mt-1"
+            >
+              <RotateCcw className="size-3.5" />
+              <span>Clear All Filters</span>
+            </Button>
+          </div>
+        )
+      ) : (
+        /* Zero Total Tasks */
+        <div className="py-12 text-center rounded-xl border border-dashed border-border/80 bg-card/40 p-6 space-y-3">
+          <div className="size-11 rounded-2xl bg-muted text-muted-foreground flex items-center justify-center mx-auto">
+            <ListTodo className="size-5" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground">
+              No tasks in this project yet
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5 max-w-sm mx-auto">
+              Create a task to get started on your Kanban board.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => handleOpenAddTask("TODO")}
+            className="gap-1.5 text-xs font-medium cursor-pointer mt-1"
+          >
+            <Plus className="size-3.5" />
+            <span>Add Task</span>
+          </Button>
+        </div>
+      )}
 
       {/* Add Task Modal */}
       {projectId && (
