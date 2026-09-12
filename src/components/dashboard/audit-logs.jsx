@@ -95,6 +95,24 @@ const ACTION_CONFIG = {
       "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800",
     icon: FileText,
   },
+  INVOICE_STATUS_CHANGED: {
+    label: "Invoice Status",
+    badgeClass:
+      "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-200 dark:border-sky-800",
+    icon: RefreshCw,
+  },
+  INVOICE_UPDATED: {
+    label: "Invoice Updated",
+    badgeClass:
+      "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800",
+    icon: Edit3,
+  },
+  INVOICE_DELETED: {
+    label: "Invoice Deleted",
+    badgeClass:
+      "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800",
+    icon: Trash2,
+  },
 };
 
 function formatTimestamp(dateString) {
@@ -141,6 +159,22 @@ function getLogDescription(log) {
       return log.project?.name
         ? `Updated "${log.project.name}"`
         : "Updated project specifications";
+    case "INVOICE_CREATED":
+      return details.invoiceNumber
+        ? `Created invoice #${details.invoiceNumber}${details.clientName ? ` for ${details.clientName}` : ""}${details.total ? ` (₹${Number(details.total).toLocaleString("en-IN")})` : ""}`
+        : "Created new client invoice";
+    case "INVOICE_STATUS_CHANGED":
+      return details.invoiceNumber && details.from && details.to
+        ? `Invoice #${details.invoiceNumber} status: ${details.from} → ${details.to}`
+        : "Updated invoice status";
+    case "INVOICE_UPDATED":
+      return details.invoiceNumber
+        ? `Updated invoice #${details.invoiceNumber}`
+        : "Updated invoice details";
+    case "INVOICE_DELETED":
+      return details.invoiceNumber
+        ? `Deleted invoice #${details.invoiceNumber}`
+        : "Deleted client invoice";
     default:
       return log.action.replace(/_/g, " ").toLowerCase();
   }

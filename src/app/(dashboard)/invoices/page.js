@@ -1,14 +1,18 @@
 import { auth } from "@/auth";
-import LogoutButton from "@/components/shared/logout-button";
+import { redirect } from "next/navigation";
+import InvoicesPageClient from "@/components/invoices/invoices-page-client";
+
+export const metadata = {
+  title: "Invoices & Billing | WorkPilot CRM",
+  description: "Create, track, and manage client invoices, line items, and payments.",
+};
 
 export default async function InvoicePage() {
   const session = await auth();
 
-  return (
-    <div>
-      <h1 className="text-3xl font-bold">Invoices</h1>
+  if (!session?.user?.id) {
+    redirect("/login");
+  }
 
-      <p className="text-muted-foreground mt-2">Welcome to WorkPilot CRM.</p>
-    </div>
-  );
+  return <InvoicesPageClient />;
 }

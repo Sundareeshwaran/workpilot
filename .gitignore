@@ -16,6 +16,9 @@
 # .vscode
 .vscode
 
+# scratch
+scratch
+
 # next.js
 /.next/
 /out/

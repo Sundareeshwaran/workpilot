@@ -198,6 +198,11 @@ model Invoice {
   items InvoiceItem[]
 
   payments Payment[]
+
+  @@index([userId])
+  @@index([clientId])
+  @@index([projectId])
+  @@index([status])
 }
 
 // InvoiceItem Model
@@ -217,6 +222,8 @@ model InvoiceItem {
   createdAt DateTime @default(now())
 
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
 }
 
 // Payment Model
@@ -248,15 +255,15 @@ model Activity {
   id String @id @default(cuid())
 
   userId    String
-  projectId String
+  projectId String?
 
   action  String
   details Json?
 
   createdAt DateTime @default(now())
 
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([projectId])
