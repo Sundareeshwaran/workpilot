@@ -225,3 +225,24 @@ export const invoiceStatusSchema = z.object({
     errorMap: () => ({ message: "Invalid invoice status" }),
   }),
 });
+
+export const invoiceSendSchema = z.object({
+  recipientEmail: z
+    .string()
+    .trim()
+    .email("Please provide a valid recipient email address")
+    .optional()
+    .nullable()
+    .or(z.literal("")),
+  subject: z
+    .string()
+    .trim()
+    .max(200, "Subject cannot exceed 200 characters")
+    .optional(),
+  message: z
+    .string()
+    .trim()
+    .max(2000, "Message cannot exceed 2000 characters")
+    .optional(),
+});
+

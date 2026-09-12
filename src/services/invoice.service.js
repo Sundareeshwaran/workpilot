@@ -247,24 +247,34 @@ export async function getInvoices({
   }
 
   return {
-    invoices: invoices.map((inv) => ({
-      ...inv,
-      subtotal: Number(inv.subtotal),
-      tax: Number(inv.tax),
-      discount: Number(inv.discount),
-      total: Number(inv.total),
-      items: (inv.items || []).map((it, idx) => ({
-        id: it.id,
-        invoiceId: it.invoiceId,
-        service: it.service,
-        description: it.service,
-        quantity: it.quantity,
-        rate: Number(it.rate),
-        unitPrice: Number(it.rate),
-        amount: Number(it.amount),
-        order: idx,
-      })),
-    })),
+    invoices: invoices.map((inv) => {
+      const isOverdue =
+        inv.status !== "PAID" &&
+        inv.status !== "CANCELLED" &&
+        new Date(inv.dueDate) < now;
+
+      return {
+        ...inv,
+        isOverdue,
+        effectiveStatus:
+          isOverdue && inv.status === "SENT" ? "OVERDUE" : inv.status,
+        subtotal: Number(inv.subtotal),
+        tax: Number(inv.tax),
+        discount: Number(inv.discount),
+        total: Number(inv.total),
+        items: (inv.items || []).map((it, idx) => ({
+          id: it.id,
+          invoiceId: it.invoiceId,
+          service: it.service,
+          description: it.service,
+          quantity: it.quantity,
+          rate: Number(it.rate),
+          unitPrice: Number(it.rate),
+          amount: Number(it.amount),
+          order: idx,
+        })),
+      };
+    }),
     pagination: {
       page: safePage,
       limit: safeLimit,
@@ -313,8 +323,16 @@ export async function getInvoiceById({ id, userId }) {
 
   if (!invoice) return null;
 
+  const isOverdue =
+    invoice.status !== "PAID" &&
+    invoice.status !== "CANCELLED" &&
+    new Date(invoice.dueDate) < new Date();
+
   return {
     ...invoice,
+    isOverdue,
+    effectiveStatus:
+      isOverdue && invoice.status === "SENT" ? "OVERDUE" : invoice.status,
     subtotal: Number(invoice.subtotal),
     tax: Number(invoice.tax),
     discount: Number(invoice.discount),
@@ -466,6 +484,14 @@ export async function createInvoice({ userId, data }) {
   });
 }
 
+export const VALID_INVOICE_TRANSITIONS = {
+  DRAFT: ["SENT", "PAID", "CANCELLED"],
+  SENT: ["PAID", "OVERDUE", "CANCELLED", "DRAFT"],
+  OVERDUE: ["PAID", "CANCELLED", "SENT"],
+  PAID: ["CANCELLED"], // Settled invoices cannot be reverted to draft without voiding
+  CANCELLED: ["DRAFT"], // Voided invoices can be reopened as draft
+};
+
 /**
  * Update an existing invoice for a user.
  */
@@ -489,7 +515,27 @@ export async function updateInvoice({ id, userId, data }) {
     throw error;
   }
 
-  // 2. Verify Client Ownership if changed
+  // 2. Validate Status Transition Lifecycle
+  if (data.status && data.status !== existing.status) {
+    if (existing.status === "PAID" && data.status === "DRAFT") {
+      const error = new Error(
+        "Cannot transition a settled PAID invoice back to DRAFT. Void or cancel the invoice instead."
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const allowed = VALID_INVOICE_TRANSITIONS[existing.status] || [];
+    if (!allowed.includes(data.status)) {
+      const error = new Error(
+        `Invalid status transition from ${existing.status} to ${data.status}. Allowed transitions: ${allowed.join(", ") || "none"}.`
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+  }
+
+  // 3. Verify Client Ownership if changed
   if (data.clientId && data.clientId !== existing.clientId) {
     const client = await prisma.client.findFirst({
       where: {
@@ -504,7 +550,7 @@ export async function updateInvoice({ id, userId, data }) {
     }
   }
 
-  // 3. Verify Project Ownership if changed
+  // 4. Verify Project Ownership if changed
   if (data.projectId !== undefined && data.projectId !== existing.projectId) {
     if (data.projectId && data.projectId.trim() !== "") {
       const project = await prisma.project.findFirst({
@@ -521,7 +567,7 @@ export async function updateInvoice({ id, userId, data }) {
     }
   }
 
-  // 4. Verify Invoice Number uniqueness if changed
+  // 5. Verify Invoice Number uniqueness if changed
   if (
     data.invoiceNumber &&
     data.invoiceNumber.trim() !== "" &&
@@ -599,16 +645,24 @@ export async function updateInvoice({ id, userId, data }) {
       },
     });
 
-    // Log Activity
+    // Log Activity with explicit lifecycle actions
     if (isStatusChanged) {
+      let lifecycleAction = "INVOICE_STATUS_CHANGED";
+      if (data.status === "SENT") lifecycleAction = "INVOICE_SENT";
+      else if (data.status === "PAID") lifecycleAction = "INVOICE_PAID";
+      else if (data.status === "OVERDUE") lifecycleAction = "INVOICE_OVERDUE";
+      else if (data.status === "CANCELLED") lifecycleAction = "INVOICE_CANCELLED";
+
       await tx.activity.create({
         data: {
           userId,
           projectId: updated.projectId,
-          action: "INVOICE_STATUS_CHANGED",
+          action: lifecycleAction,
           details: {
             invoiceId: id,
             invoiceNumber: updated.invoiceNumber,
+            clientName: existing.client?.name || updated.client?.name,
+            total,
             from: existing.status,
             to: data.status,
           },
@@ -623,6 +677,7 @@ export async function updateInvoice({ id, userId, data }) {
           details: {
             invoiceId: id,
             invoiceNumber: updated.invoiceNumber,
+            clientName: existing.client?.name || updated.client?.name,
             total,
             itemCount: itemsWithAmounts.length,
           },

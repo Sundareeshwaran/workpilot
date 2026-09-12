@@ -13,6 +13,8 @@ import {
   Mail,
   Phone,
   ArrowRight,
+  Send,
+  XCircle,
 } from "lucide-react";
 import {
   Dialog,
@@ -57,6 +59,7 @@ export default function InvoiceDetailDialog({
   onOpenChange,
   invoice = null,
   onEditClick,
+  onStatusChange,
 }) {
   const printRef = useRef(null);
 
@@ -88,6 +91,32 @@ export default function InvoiceDetailDialog({
               <Badge variant="destructive" className="text-[10px] uppercase font-bold">
                 Overdue
               </Badge>
+            )}
+
+            {/* Quick Status Action Buttons */}
+            {onStatusChange && invoice.status === "DRAFT" && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => onStatusChange(invoice.id, "SENT")}
+                className="h-7 text-xs gap-1 cursor-pointer"
+              >
+                <Send className="size-3" />
+                <span>Mark Sent</span>
+              </Button>
+            )}
+
+            {onStatusChange && (invoice.status === "SENT" || invoice.status === "OVERDUE" || invoice.status === "DRAFT") && (
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => onStatusChange(invoice.id, "PAID")}
+                className="h-7 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
+              >
+                <CheckCircle2 className="size-3" />
+                <span>Mark Paid</span>
+              </Button>
             )}
           </div>
         </DialogHeader>

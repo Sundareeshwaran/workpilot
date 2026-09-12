@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import {
   FileText,
   Building2,
@@ -17,6 +18,8 @@ import {
   ChevronLeft,
   ChevronRight,
   RotateCcw,
+  ExternalLink,
+  Download,
 } from "lucide-react";
 import {
   Table,
@@ -183,9 +186,8 @@ export default function InvoiceTable({
                 >
                   {/* Invoice Number */}
                   <TableCell className="pl-6 py-3.5 align-middle">
-                    <button
-                      type="button"
-                      onClick={() => onViewInvoice(invoice)}
+                    <Link
+                      href={`/invoices/${invoice.id}`}
                       className="flex items-center gap-2.5 text-left group-hover:text-primary transition-colors cursor-pointer"
                     >
                       <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
@@ -199,7 +201,7 @@ export default function InvoiceTable({
                           {invoice.items?.length || 0} line {invoice.items?.length === 1 ? "item" : "items"}
                         </p>
                       </div>
-                    </button>
+                    </Link>
                   </TableCell>
 
                   {/* Client */}
@@ -298,12 +300,33 @@ export default function InvoiceTable({
                         <DropdownMenuLabel className="text-[11px] font-semibold text-muted-foreground">
                           Invoice Actions
                         </DropdownMenuLabel>
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href={`/invoices/${invoice.id}`}
+                            className="gap-2 text-xs cursor-pointer flex items-center"
+                          >
+                            <ExternalLink className="size-3.5" />
+                            <span>View Full Page</span>
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <a
+                            href={`/api/invoices/${invoice.id}/pdf?download=true`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            download={`invoice-${invoice.invoiceNumber}.pdf`}
+                            className="gap-2 text-xs cursor-pointer flex items-center"
+                          >
+                            <Download className="size-3.5" />
+                            <span>Download PDF</span>
+                          </a>
+                        </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => onViewInvoice(invoice)}
                           className="gap-2 text-xs cursor-pointer"
                         >
                           <Eye className="size-3.5" />
-                          <span>View & Print</span>
+                          <span>Quick Preview & Print</span>
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => onEditInvoice(invoice)}

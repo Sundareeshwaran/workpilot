@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import TaskStatusBadge from "@/components/tasks/task-status-badge";
 import ProjectStatusBadge from "@/components/projects/project-status-badge";
+import InvoiceStatusBadge from "@/components/invoices/invoice-status-badge";
 
 const ACTION_CONFIG = {
   TASK_CREATED: {
@@ -74,6 +75,41 @@ const ACTION_CONFIG = {
     label: "Invoice Created",
     badgeClass: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800",
     icon: FileText,
+  },
+  INVOICE_SENT: {
+    label: "Invoice Sent",
+    badgeClass: "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-200 dark:border-sky-800",
+    icon: RefreshCw,
+  },
+  INVOICE_PAID: {
+    label: "Invoice Paid",
+    badgeClass: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800",
+    icon: CheckCircle2,
+  },
+  INVOICE_OVERDUE: {
+    label: "Invoice Overdue",
+    badgeClass: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800",
+    icon: Clock,
+  },
+  INVOICE_CANCELLED: {
+    label: "Invoice Cancelled",
+    badgeClass: "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700",
+    icon: Trash2,
+  },
+  INVOICE_STATUS_CHANGED: {
+    label: "Invoice Status",
+    badgeClass: "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-200 dark:border-sky-800",
+    icon: RefreshCw,
+  },
+  INVOICE_UPDATED: {
+    label: "Invoice Updated",
+    badgeClass: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800",
+    icon: Edit3,
+  },
+  INVOICE_DELETED: {
+    label: "Invoice Deleted",
+    badgeClass: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800",
+    icon: Trash2,
   },
 };
 
@@ -267,8 +303,95 @@ export default function AuditLogSheet({
               </div>
             )}
 
+            {/* INVOICE STATUS CHANGED / LIFECYCLE */}
+            {["INVOICE_STATUS_CHANGED", "INVOICE_SENT", "INVOICE_PAID", "INVOICE_OVERDUE", "INVOICE_CANCELLED"].includes(log.action) && (
+              <div className="rounded-xl border bg-card p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-muted-foreground">Invoice #{details.invoiceNumber || "N/A"}</span>
+                  {details.total !== undefined && (
+                    <span className="text-xs font-bold text-foreground font-mono">
+                      ₹{Number(details.total).toLocaleString("en-IN")}
+                    </span>
+                  )}
+                </div>
+                {details.clientName && (
+                  <p className="text-xs text-muted-foreground">
+                    Client: <strong className="text-foreground">{details.clientName}</strong>
+                  </p>
+                )}
+                {details.from && details.to ? (
+                  <div className="flex items-center gap-3 bg-muted/40 p-3 rounded-lg border">
+                    <InvoiceStatusBadge status={details.from} />
+                    <ArrowRight className="size-4 text-muted-foreground shrink-0" />
+                    <InvoiceStatusBadge status={details.to} />
+                  </div>
+                ) : (
+                  <div className="bg-muted/40 p-3 rounded-lg border">
+                    <InvoiceStatusBadge status={details.to || log.action.replace("INVOICE_", "")} />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* INVOICE CREATED */}
+            {log.action === "INVOICE_CREATED" && (
+              <div className="rounded-xl border bg-card p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-foreground">
+                    Invoice #{details.invoiceNumber || "Created"}
+                  </span>
+                  {details.total !== undefined && (
+                    <span className="text-xs font-bold text-primary font-mono">
+                      ₹{Number(details.total).toLocaleString("en-IN")}
+                    </span>
+                  )}
+                </div>
+                {details.clientName && (
+                  <p className="text-xs text-muted-foreground">
+                    Billed to: <strong className="text-foreground">{details.clientName}</strong>
+                  </p>
+                )}
+                {details.itemCount !== undefined && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Contains {details.itemCount} itemized service{details.itemCount === 1 ? "" : "s"}.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* INVOICE UPDATED */}
+            {log.action === "INVOICE_UPDATED" && (
+              <div className="rounded-xl border bg-card p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-foreground">
+                    Invoice #{details.invoiceNumber || "Updated"}
+                  </span>
+                  {details.total !== undefined && (
+                    <span className="text-xs font-bold text-foreground font-mono">
+                      ₹{Number(details.total).toLocaleString("en-IN")}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Invoice billing specifications and line items were updated.
+                </p>
+              </div>
+            )}
+
+            {/* INVOICE DELETED */}
+            {log.action === "INVOICE_DELETED" && (
+              <div className="rounded-xl border bg-card p-4 space-y-2">
+                <span className="text-sm font-semibold text-foreground line-through text-muted-foreground">
+                  Invoice #{details.invoiceNumber || "Deleted"}
+                </span>
+                <p className="text-xs text-rose-600 dark:text-rose-400">
+                  Invoice and associated line items were removed from the database.
+                </p>
+              </div>
+            )}
+
             {/* Generic fallback */}
-            {!["TASK_STATUS_CHANGED", "TASK_CREATED", "TASK_UPDATED", "TASK_DELETED", "PROJECT_STATUS_CHANGED", "PROJECT_CREATED"].includes(log.action) && (
+            {!["TASK_STATUS_CHANGED", "TASK_CREATED", "TASK_UPDATED", "TASK_DELETED", "PROJECT_STATUS_CHANGED", "PROJECT_CREATED", "INVOICE_STATUS_CHANGED", "INVOICE_SENT", "INVOICE_PAID", "INVOICE_OVERDUE", "INVOICE_CANCELLED", "INVOICE_CREATED", "INVOICE_UPDATED", "INVOICE_DELETED"].includes(log.action) && (
               <div className="rounded-xl border bg-card p-4 space-y-2">
                 <p className="text-sm font-medium text-foreground">
                   {config.label}

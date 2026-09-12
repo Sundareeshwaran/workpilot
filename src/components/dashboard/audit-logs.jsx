@@ -95,6 +95,30 @@ const ACTION_CONFIG = {
       "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800",
     icon: FileText,
   },
+  INVOICE_SENT: {
+    label: "Invoice Sent",
+    badgeClass:
+      "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-200 dark:border-sky-800",
+    icon: RefreshCw,
+  },
+  INVOICE_PAID: {
+    label: "Invoice Paid",
+    badgeClass:
+      "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800",
+    icon: CheckCircle2,
+  },
+  INVOICE_OVERDUE: {
+    label: "Invoice Overdue",
+    badgeClass:
+      "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800",
+    icon: Clock,
+  },
+  INVOICE_CANCELLED: {
+    label: "Invoice Cancelled",
+    badgeClass:
+      "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700",
+    icon: Trash2,
+  },
   INVOICE_STATUS_CHANGED: {
     label: "Invoice Status",
     badgeClass:
@@ -163,6 +187,22 @@ function getLogDescription(log) {
       return details.invoiceNumber
         ? `Created invoice #${details.invoiceNumber}${details.clientName ? ` for ${details.clientName}` : ""}${details.total ? ` (₹${Number(details.total).toLocaleString("en-IN")})` : ""}`
         : "Created new client invoice";
+    case "INVOICE_SENT":
+      return details.invoiceNumber
+        ? `Invoice #${details.invoiceNumber} sent to ${details.clientName || "client"}`
+        : "Invoice dispatched to client";
+    case "INVOICE_PAID":
+      return details.invoiceNumber
+        ? `Payment received for invoice #${details.invoiceNumber}${details.total ? ` (₹${Number(details.total).toLocaleString("en-IN")})` : ""}`
+        : "Invoice payment recorded";
+    case "INVOICE_OVERDUE":
+      return details.invoiceNumber
+        ? `Invoice #${details.invoiceNumber} marked as overdue`
+        : "Invoice past due date";
+    case "INVOICE_CANCELLED":
+      return details.invoiceNumber
+        ? `Invoice #${details.invoiceNumber} was cancelled / voided`
+        : "Invoice cancelled";
     case "INVOICE_STATUS_CHANGED":
       return details.invoiceNumber && details.from && details.to
         ? `Invoice #${details.invoiceNumber} status: ${details.from} → ${details.to}`

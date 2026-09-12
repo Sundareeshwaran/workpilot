@@ -116,6 +116,9 @@ export default function InvoicesPageClient() {
     setInvoices((prev) =>
       prev.map((inv) => (inv.id === invoiceId ? { ...inv, status: newStatus } : inv))
     );
+    setInvoiceToView((prev) =>
+      prev && prev.id === invoiceId ? { ...prev, status: newStatus } : prev
+    );
 
     try {
       const res = await fetch(`/api/invoices/${invoiceId}/status`, {
@@ -264,6 +267,7 @@ export default function InvoicesPageClient() {
         onOpenChange={setDetailOpen}
         invoice={invoiceToView}
         onEditClick={handleEdit}
+        onStatusChange={handleStatusChange}
       />
 
       {/* Delete Confirmation Dialog */}

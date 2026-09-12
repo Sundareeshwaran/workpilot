@@ -34,12 +34,72 @@ import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
 import { INVOICE_STATUS_CONFIG } from "./invoice-status-badge";
+
+export const TAX_PRESETS = [
+  {
+    group: "India - GST (Central & State / Interstate)",
+    options: [
+      { id: "GST_18_INTRA", label: "GST 18% (CGST 9% + SGST 9%) - Central & State", rate: 18 },
+      { id: "GST_18_INTER", label: "IGST 18% (Central) - Interstate", rate: 18 },
+      { id: "GST_12_INTRA", label: "GST 12% (CGST 6% + SGST 6%) - Central & State", rate: 12 },
+      { id: "GST_12_INTER", label: "IGST 12% (Central) - Interstate", rate: 12 },
+      { id: "GST_5_INTRA", label: "GST 5% (CGST 2.5% + SGST 2.5%) - Central & State", rate: 5 },
+      { id: "GST_5_INTER", label: "IGST 5% (Central) - Interstate", rate: 5 },
+      { id: "GST_28_INTRA", label: "GST 28% (CGST 14% + SGST 14%) - Central & State", rate: 28 },
+      { id: "GST_28_INTER", label: "IGST 28% (Central) - Interstate", rate: 28 },
+      { id: "GST_0", label: "GST 0% - Exempted / Nil Rated", rate: 0 },
+    ],
+  },
+  {
+    group: "United States - State & Local Sales Tax",
+    options: [
+      { id: "US_10", label: "10% - Combined State & County Tax", rate: 10 },
+      { id: "US_8_25", label: "8.25% - State & Local Sales Tax", rate: 8.25 },
+      { id: "US_6", label: "6% - State Sales Tax", rate: 6 },
+      { id: "US_4", label: "4% - State Sales Tax", rate: 4 },
+    ],
+  },
+  {
+    group: "United Kingdom & Europe - VAT",
+    options: [
+      { id: "UK_VAT_20", label: "20% - Standard Rate VAT (Central)", rate: 20 },
+      { id: "UK_VAT_5", label: "5% - Reduced Rate VAT", rate: 5 },
+    ],
+  },
+  {
+    group: "Zero Tax & Custom",
+    options: [
+      { id: "TAX_0", label: "0% - No Tax (0.00)", rate: 0 },
+      { id: "CUSTOM", label: "Custom Tax Amount (Manual Entry)", rate: null },
+    ],
+  },
+];
+
+export const DISCOUNT_PERCENT_OPTIONS = [
+  { value: "0", label: "0% (No Discount)", percent: 0 },
+  { value: "2", label: "2% Discount", percent: 2 },
+  { value: "3", label: "3% Discount", percent: 3 },
+  { value: "4", label: "4% Discount", percent: 4 },
+  { value: "5", label: "5% Discount", percent: 5 },
+  { value: "6", label: "6% Discount", percent: 6 },
+  { value: "7", label: "7% Discount", percent: 7 },
+  { value: "8", label: "8% Discount", percent: 8 },
+  { value: "9", label: "9% Discount", percent: 9 },
+  { value: "10", label: "10% Discount", percent: 10 },
+  { value: "12", label: "12% Discount", percent: 12 },
+  { value: "15", label: "15% Discount", percent: 15 },
+  { value: "18", label: "18% Discount", percent: 18 },
+  { value: "20", label: "20% Discount", percent: 20 },
+  { value: "CUSTOM", label: "Custom Amount (₹)", percent: null },
+];
 
 export default function InvoiceFormDialog({
   open,
@@ -59,8 +119,12 @@ export default function InvoiceFormDialog({
   const [dueDate, setDueDate] = useState("");
   const [status, setStatus] = useState("DRAFT");
   const [notes, setNotes] = useState("");
-  const [tax, setTax] = useState(0);
-  const [discount, setDiscount] = useState(0);
+
+  // Tax & Discount States
+  const [taxPreset, setTaxPreset] = useState("GST_18_INTRA");
+  const [customTax, setCustomTax] = useState("");
+  const [discountPercent, setDiscountPercent] = useState("0");
+  const [customDiscount, setCustomDiscount] = useState("");
 
   const [items, setItems] = useState([
     {
@@ -105,8 +169,26 @@ export default function InvoiceFormDialog({
         );
         setStatus(invoiceToEdit.status || "DRAFT");
         setNotes(invoiceToEdit.notes || "");
-        setTax(Number(invoiceToEdit.tax) || 0);
-        setDiscount(Number(invoiceToEdit.discount) || 0);
+
+        // Set edit tax values
+        const editTax = Number(invoiceToEdit.tax) || 0;
+        if (editTax === 0) {
+          setTaxPreset("TAX_0");
+          setCustomTax("");
+        } else {
+          setTaxPreset("CUSTOM");
+          setCustomTax(String(editTax));
+        }
+
+        // Set edit discount values
+        const editDiscount = Number(invoiceToEdit.discount) || 0;
+        if (editDiscount === 0) {
+          setDiscountPercent("0");
+          setCustomDiscount("");
+        } else {
+          setDiscountPercent("CUSTOM");
+          setCustomDiscount(String(editDiscount));
+        }
 
         if (invoiceToEdit.items && invoiceToEdit.items.length > 0) {
           setItems(
@@ -131,8 +213,10 @@ export default function InvoiceFormDialog({
         setNotes(
           "Payment terms: Net 14 days. Please include the invoice number in your transfer reference.",
         );
-        setTax(0);
-        setDiscount(0);
+        setTaxPreset("GST_18_INTRA");
+        setCustomTax("");
+        setDiscountPercent("0");
+        setCustomDiscount("");
         setItems([
           {
             id: "temp-1",
@@ -169,7 +253,7 @@ export default function InvoiceFormDialog({
     });
   };
 
-  // Real-time calculation of subtotal and total
+  // Real-time calculation of subtotal
   const calculatedSubtotal = useMemo(() => {
     return items.reduce((sum, it) => {
       const q = parseInt(it.quantity, 10) || 0;
@@ -178,11 +262,43 @@ export default function InvoiceFormDialog({
     }, 0);
   }, [items]);
 
+  // Find active tax preset details
+  const selectedTaxOption = useMemo(() => {
+    for (const group of TAX_PRESETS) {
+      const found = group.options.find((opt) => opt.id === taxPreset);
+      if (found) return found;
+    }
+    return TAX_PRESETS[0].options[0];
+  }, [taxPreset]);
+
+  // Real-time Tax Amount calculation
+  const calculatedTax = useMemo(() => {
+    if (taxPreset === "CUSTOM") {
+      return Math.max(0, Number(customTax) || 0);
+    }
+    if (!selectedTaxOption || selectedTaxOption.rate === 0) return 0;
+    return Number(((calculatedSubtotal * selectedTaxOption.rate) / 100).toFixed(2));
+  }, [taxPreset, selectedTaxOption, customTax, calculatedSubtotal]);
+
+  // Real-time Discount Amount calculation (from 2% to 20% or custom)
+  const calculatedDiscount = useMemo(() => {
+    if (discountPercent === "CUSTOM") {
+      return Math.max(0, Number(customDiscount) || 0);
+    }
+    const pct = Number(discountPercent) || 0;
+    if (pct <= 0) return 0;
+    return Number(((calculatedSubtotal * pct) / 100).toFixed(2));
+  }, [discountPercent, customDiscount, calculatedSubtotal]);
+
+  // Final Total
   const calculatedTotal = useMemo(() => {
-    const numTax = Math.max(0, Number(tax) || 0);
-    const numDisc = Math.max(0, Number(discount) || 0);
-    return Math.max(0, calculatedSubtotal + numTax - numDisc);
-  }, [calculatedSubtotal, tax, discount]);
+    return Math.max(
+      0,
+      Number(
+        (calculatedSubtotal + calculatedTax - calculatedDiscount).toFixed(2),
+      ),
+    );
+  }, [calculatedSubtotal, calculatedTax, calculatedDiscount]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -224,8 +340,8 @@ export default function InvoiceFormDialog({
         dueDate,
         status,
         notes: notes.trim() || null,
-        tax: Number(tax) || 0,
-        discount: Number(discount) || 0,
+        tax: calculatedTax,
+        discount: calculatedDiscount,
         items: validItems.map((it) => ({
           service: it.service.trim(),
           quantity: Math.max(1, parseInt(it.quantity, 10) || 1),
@@ -615,44 +731,139 @@ export default function InvoiceFormDialog({
                 </span>
               </div>
 
-              {/* Tax Input */}
-              <div className="flex items-center justify-between gap-3 text-xs">
-                <span className="text-muted-foreground font-medium flex items-center gap-1">
-                  <span>Tax Amount (+)</span>
-                </span>
-                <div className="flex items-center gap-1 w-32">
-                  <span className="text-xs text-muted-foreground font-mono">
-                    ₹
+              {/* Tax Selection (Country, State & Central) */}
+              <div className="space-y-1.5 pt-1 border-t border-border/60">
+                <div className="flex items-center justify-between text-xs">
+                  <Label className="font-semibold text-foreground flex items-center gap-1.5">
+                    <Receipt className="size-3.5 text-primary" />
+                    <span>Tax (Country, State & Central)</span>
+                  </Label>
+                  <span className="font-mono font-bold text-foreground">
+                    +₹
+                    {calculatedTax.toLocaleString("en-IN", {
+                      minimumFractionDigits: 2,
+                    })}
                   </span>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={tax}
-                    onChange={(e) => setTax(e.target.value)}
-                    className="h-7 text-xs text-right font-mono bg-background"
-                  />
                 </div>
+
+                <Select value={taxPreset} onValueChange={setTaxPreset}>
+                  <SelectTrigger className="h-8 text-xs bg-background w-full">
+                    <SelectValue placeholder="Select Tax Rate..." />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    {TAX_PRESETS.map((grp) => (
+                      <SelectGroup key={grp.group}>
+                        <SelectLabel className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-2 py-1 bg-muted/40">
+                          {grp.group}
+                        </SelectLabel>
+                        {grp.options.map((opt) => (
+                          <SelectItem
+                            key={opt.id}
+                            value={opt.id}
+                            className="text-xs"
+                          >
+                            <span>{opt.label}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* If Custom Tax is selected, show manual numeric input */}
+                {taxPreset === "CUSTOM" && (
+                  <div className="flex items-center gap-2 pt-1">
+                    <span className="text-xs text-muted-foreground font-medium">
+                      Custom Tax Amount:
+                    </span>
+                    <div className="flex items-center gap-1 flex-1">
+                      <span className="text-xs text-muted-foreground font-mono">
+                        ₹
+                      </span>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={customTax}
+                        onChange={(e) => setCustomTax(e.target.value)}
+                        placeholder="0.00"
+                        className="h-7 text-xs font-mono bg-background text-right"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Tax Central + State breakdown info */}
+                {taxPreset.startsWith("GST_") &&
+                  selectedTaxOption?.rate > 0 &&
+                  selectedTaxOption.id.includes("INTRA") && (
+                    <p className="text-[10px] text-muted-foreground">
+                      Central CGST {(selectedTaxOption.rate / 2).toFixed(1)}% (₹
+                      {(calculatedTax / 2).toFixed(2)}) + State SGST{" "}
+                      {(selectedTaxOption.rate / 2).toFixed(1)}% (₹
+                      {(calculatedTax / 2).toFixed(2)})
+                    </p>
+                  )}
               </div>
 
-              {/* Discount Input */}
-              <div className="flex items-center justify-between gap-3 text-xs">
-                <span className="text-muted-foreground font-medium">
-                  Discount (-)
-                </span>
-                <div className="flex items-center gap-1 w-32">
-                  <span className="text-xs text-muted-foreground font-mono">
-                    ₹
+              {/* Discount Selection (2% to 20%) */}
+              <div className="space-y-1.5 pt-2 border-t border-border/60">
+                <div className="flex items-center justify-between text-xs">
+                  <Label className="font-semibold text-foreground flex items-center gap-1.5">
+                    <Percent className="size-3.5 text-primary" />
+                    <span>Discount (2% to 20%)</span>
+                  </Label>
+                  <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                    {calculatedDiscount > 0
+                      ? `-₹${calculatedDiscount.toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                        })}`
+                      : "₹0.00"}
                   </span>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={discount}
-                    onChange={(e) => setDiscount(e.target.value)}
-                    className="h-7 text-xs text-right font-mono bg-background"
-                  />
                 </div>
+
+                <Select
+                  value={discountPercent}
+                  onValueChange={setDiscountPercent}
+                >
+                  <SelectTrigger className="h-8 text-xs bg-background w-full">
+                    <SelectValue placeholder="Select discount percentage..." />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60">
+                    {DISCOUNT_PERCENT_OPTIONS.map((d) => (
+                      <SelectItem
+                        key={d.value}
+                        value={d.value}
+                        className="text-xs"
+                      >
+                        <span>{d.label}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* If Custom Discount is selected, show manual numeric input */}
+                {discountPercent === "CUSTOM" && (
+                  <div className="flex items-center gap-2 pt-1">
+                    <span className="text-xs text-muted-foreground font-medium">
+                      Custom Discount (₹):
+                    </span>
+                    <div className="flex items-center gap-1 flex-1">
+                      <span className="text-xs text-muted-foreground font-mono">
+                        ₹
+                      </span>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={customDiscount}
+                        onChange={(e) => setCustomDiscount(e.target.value)}
+                        placeholder="0.00"
+                        className="h-7 text-xs font-mono bg-background text-right"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Grand Total */}

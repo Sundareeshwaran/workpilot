@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "../lib/prisma.js";
 
 export async function createActivity({ userId, projectId, action, details = null, tx = null }) {
   const client = tx || prisma;
